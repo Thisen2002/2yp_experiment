@@ -3,7 +3,7 @@ const router = express.Router();
 const {
     getBuildings,
     getBuildingById,
-    createBuilding,
+    // createBuilding,
     updateBuilding,
     deleteBuilding,
     getBuildingsByTag,
@@ -23,12 +23,12 @@ router.get('/tags', getTags);
 router.get('/:id', getBuildingById);
 
 // Create new building
-router.post('/', createBuilding);
+// router.post('/', createBuilding);
 
 // Update building
 router.put('/:id', updateBuilding);
 
 // Delete building
-router.delete('/:id', deleteBuilding);
+// router.delete('/:id', deleteBuilding);
 
 module.exports = router;

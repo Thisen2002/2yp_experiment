@@ -131,3 +131,57 @@ CREATE TABLE Organizer (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
+CREATE TABLE exhibits (
+    exhibit_name VARCHAR(255) PRIMARY KEY,
+    building_id VARCHAR(10) NOT NULL,
+    exhibit_tags JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Foreign key constraint to buildings table
+    CONSTRAINT fk_exhibits_building 
+        FOREIGN KEY (building_id) 
+        REFERENCES buildings(building_id) 
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-------------------------------------------------------------------------------------------------------------------------
+-- Entry/Exit logging for visitor tracking
+CREATE TABLE entry_exit_log (
+    log_id SERIAL PRIMARY KEY,
+    visitor_id VARCHAR(255) NOT NULL,
+    building_id VARCHAR(10) NOT NULL,
+    entry_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    exit_time TIMESTAMP NULL,
+    qr_code VARCHAR(255),
+    session_duration INTERVAL GENERATED ALWAYS AS (exit_time - entry_time) STORED,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (building_id) REFERENCES buildings(building_id) ON DELETE CASCADE
+);
+
+-- Visitor registration/tracking
+CREATE TABLE visitors (
+    visitor_id VARCHAR(255) PRIMARY KEY,
+    visitor_name VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    registration_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    visitor_type VARCHAR(50) DEFAULT 'general' -- 'student', 'faculty', 'general', etc.
+);
+
+-- Daily visitor counts per building
+CREATE TABLE daily_visitor_counts (
+    count_id SERIAL PRIMARY KEY,
+    building_id VARCHAR(10) NOT NULL,
+    visit_date DATE NOT NULL,
+    total_visitors INTEGER DEFAULT 0,
+    unique_visitors INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (building_id) REFERENCES buildings(building_id) ON DELETE CASCADE,
+    UNIQUE(building_id, visit_date)
+);

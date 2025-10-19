@@ -4,11 +4,16 @@ const analyticsService = require("../services/analyticsService");
 async function getTotalVisitors(req, res) {
   try {
     const { buildingId } = req.query;
+    
+    if (!buildingId) {
+      return res.status(400).json({ error: "buildingId parameter is required" });
+    }
+    
     const data = await analyticsService.getTotalVisitors(buildingId);
     res.json(data);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch total visitors" });
+    console.error('Error in getTotalVisitors:', err);
+    res.status(500).json({ error: "Failed to fetch total visitors", details: err.message });
   }
 }
 
@@ -16,11 +21,16 @@ async function getTotalVisitors(req, res) {
 async function getTotalCheckIns(req, res) {
   try {
     const { buildingId } = req.query;
+    
+    if (!buildingId) {
+      return res.status(400).json({ error: "buildingId parameter is required" });
+    }
+    
     const data = await analyticsService.getTotalCheckIns(buildingId);
     res.json(data);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch total check-ins" });
+    console.error('Error in getTotalCheckIns:', err);
+    res.status(500).json({ error: "Failed to fetch total check-ins", details: err.message });
   }
 }
 
@@ -28,11 +38,16 @@ async function getTotalCheckIns(req, res) {
 async function getAverageDuration(req, res) {
   try {
     const { buildingId, slot } = req.query;
+    
+    if (!buildingId) {
+      return res.status(400).json({ error: "buildingId parameter is required" });
+    }
+    
     const data = await analyticsService.getAverageDuration(buildingId, slot);
     res.json(data);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch average duration" });
+    console.error('Error in getAverageDuration:', err);
+    res.status(500).json({ error: "Failed to fetch average duration", details: err.message });
   }
 }
 
@@ -40,11 +55,16 @@ async function getAverageDuration(req, res) {
 async function getRepeatVisitors(req, res) {
   try {
     const { buildingId, slot } = req.query;
+    
+    if (!buildingId) {
+      return res.status(400).json({ error: "buildingId parameter is required" });
+    }
+    
     const data = await analyticsService.getRepeatVisitors(buildingId, slot);
     res.json(data);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch repeat visitors" });
+    console.error('Error in getRepeatVisitors:', err);
+    res.status(500).json({ error: "Failed to fetch repeat visitors", details: err.message });
   }
 }
 
@@ -54,8 +74,8 @@ async function getTop3Buildings(req, res) {
     const data = await analyticsService.getTop3Buildings();
     res.json(data);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch top 3 buildings" });
+    console.error('Error in getTop3Buildings:', err);
+    res.status(500).json({ error: "Failed to fetch top 3 buildings", details: err.message });
   }
 }
 
@@ -65,8 +85,8 @@ async function getVisitorsPerBuilding(req, res) {
     const data = await analyticsService.getVisitorsPerBuilding();
     res.json(data);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch visitors per building" });
+    console.error('Error in getVisitorsPerBuilding:', err);
+    res.status(500).json({ error: "Failed to fetch visitors per building", details: err.message });
   }
 }
 
