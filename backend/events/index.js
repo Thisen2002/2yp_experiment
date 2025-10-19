@@ -95,7 +95,7 @@ app.listen(PORT, () => {
 
 
 
-//heatmap   backend
+//heatmap   backend----------------------------------------------------------------------------------------------------------------------------------------------------
 
 // Register each feature router
 app.use('/heatmap', require('./heatmap/heatmap'));       // Heatmap data from CCTV
@@ -108,7 +108,7 @@ app.get('/heatmap/health', (req, res) => res.json({ msg: "Hello from backend!" }
 // app.listen(PORT, () => console.log(`API running on port ${PORT}`));
 
 
-//maps backend
+//maps backend--------------------------------------------------------------------------------------------------------------------------------------------
 // const express = require("express");
 const http = require('http');
 const {Server} = require('socket.io');
