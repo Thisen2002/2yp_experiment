@@ -18,6 +18,9 @@ const buildingRoutes = require('./routes/buildingRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const heatmapRoutes = require('./routes/heatmapRoutes');
 const exportRoutes = require('./routes/exportRoutes');
+const visitorsRoutes = require('./routes/visitorsRoutes');
+const entryExitRoutes = require('./routes/entryExitRoutes');
+const dailyCountsRoutes = require('./routes/dailyCountsRoutes');
 
 // Use routes
 app.use('/api/auth', authRoutes);
@@ -27,6 +30,9 @@ app.use('/api/buildings', buildingRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/heatmap', heatmapRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/visitors', visitorsRoutes);
+app.use('/api/entry-exit', entryExitRoutes);
+app.use('/api/daily-counts', dailyCountsRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -40,7 +46,10 @@ app.get('/', (req, res) => {
             buildings: '/api/buildings',
             analytics: '/api/analytics',
             heatmap: '/api/heatmap',
-            export: '/api/export'
+            export: '/api/export',
+            visitors: '/api/visitors',
+            entryExit: '/api/entry-exit',
+            dailyCounts: '/api/daily-counts'
         }
     });
 });
