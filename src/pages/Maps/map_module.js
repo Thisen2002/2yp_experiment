@@ -4,7 +4,7 @@ import io, { Socket } from "socket.io-client";
 import mapping from "./mappings.json";
 
 let map, socket;
-const API = 'http://localhost:3001';
+const API = 'http://localhost:3036';
 
 let userPosition;
 let userMarkerLayer;

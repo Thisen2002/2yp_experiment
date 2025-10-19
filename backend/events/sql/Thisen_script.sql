@@ -116,3 +116,18 @@ CREATE TABLE current_status (
         REFERENCES buildings(building_id)
         ON DELETE CASCADE
 );
+
+-- organize dashboard tables
+
+CREATE TABLE Organizer (
+    organizer_ID SERIAL PRIMARY KEY,
+    organizer_name VARCHAR(255) NOT NULL,
+    fname VARCHAR(100) NOT NULL,
+    lname VARCHAR(100) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    contact_no VARCHAR(50),
+    password_hash VARCHAR(255) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

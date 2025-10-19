@@ -1,6 +1,6 @@
 // Search utility function for the frontend
 
-const API = "http://localhost:3001"
+const API = "http://localhost:3036"
 export async function searchDatabase(query, { category, zone, subzone } = {}) {
   if (!query || query.trim() === '') return [];
   
