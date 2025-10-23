@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Phone, Mail, Clock, Users, Wifi, Car, Utensils } from 'lucide-react';
+import { MapPin, Phone, Mail, Users, Wifi, Car, Utensils } from 'lucide-react';
 
 const Information: React.FC = () => {
   const venueData = {

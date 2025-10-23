@@ -21,7 +21,8 @@ const EventsScreen = () => {
   const navigate = useNavigate();
   const API_BASE_URL = "http://localhost:3036";
 
-  // 🟢 Helper function for status
+  // show the status in the event card
+  //start and end are the date strings in ISO format
   const getEventStatus = (start, end) => {
     const now = new Date();
     const startDate = new Date(start);
@@ -74,6 +75,7 @@ const EventsScreen = () => {
   const fetchEvents = async () => {
     try {
       setLoading(true);
+      // fetch events
       const response = await fetch(`${API_BASE_URL}/api/events`, {
         credentials: "include",
       });
@@ -129,6 +131,7 @@ const EventsScreen = () => {
         )
     );
 
+    // mark event is interested or not on database
     try {
       const method = next ? "POST" : "DELETE";
       const r = await fetch(`${API_BASE_URL}/api/interested`, {
@@ -186,6 +189,7 @@ const EventsScreen = () => {
         minute: "2-digit",
       });
 
+  // Animation of loading screen 
   if (loading)
     return (
         <div className="events-screen p-6">
@@ -196,6 +200,7 @@ const EventsScreen = () => {
         </div>
     );
 
+  // if event data cant get loaded show a error massage.
   if (error)
     return (
         <div className="events-screen p-6">
@@ -212,7 +217,8 @@ const EventsScreen = () => {
           </div>
         </div>
     );
-
+  
+  // if there is no error in event loading page show like this way.
   return (
       <div className="events-screen p-6 bg-gray-50 min-h-screen">
         {/* Header */}
