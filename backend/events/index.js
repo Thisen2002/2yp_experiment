@@ -84,7 +84,7 @@ app.use("/api", interestsRouter); // includes /events/recommended, /events/disco
 app.use("/api/events", eventListRoutes); // /api/events list
 app.use("/api", ratingsRoutes);
 app.use("/api", eventRoutes); // includes /events/:id and related
-// app.use("/api/interests", userinterestsRouter);
+app.use("/api/interests", userinterestsRouter);
 
 
 

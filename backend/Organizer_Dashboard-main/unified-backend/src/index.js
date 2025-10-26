@@ -5,8 +5,20 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// Middleware - Configure CORS to allow frontend
+const corsOptions = {
+  origin: [
+    'http://localhost:5173',  // Vite default port
+    'http://localhost:3000',  // React default port  
+    'http://localhost:5174',  // Alternative Vite port
+    'http://127.0.0.1:5173',  // Alternative localhost
+    'http://127.0.0.1:3000',  // Alternative localhost
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -25,7 +37,7 @@ const dailyCountsRoutes = require('./routes/dailyCountsRoutes');
 // Use routes
 app.use('/api/auth', authRoutes);
 app.use('/api/organizers', organizerRoutes);
-app.use('/api/events', eventRoutes);
+app.use('/api/events', eventRoutes);   //repeat
 app.use('/api/buildings', buildingRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/heatmap', heatmapRoutes);

@@ -21,7 +21,7 @@ const OrgMngWidget: React.FC = () => {
 
   const fetchOrganizers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/organizers');
+      const response = await fetch('http://localhost:5000/api/organizers');
       const data = await response.json();
       console.log('Fetched organizers data:', data); // Debug log
       setOrganizers(data);
@@ -48,7 +48,7 @@ const OrgMngWidget: React.FC = () => {
 
     if (window.confirm('Are you sure you want to delete this organizer?')) {
       try {
-        const response = await fetch(`http://localhost:5000/organizers/${numericId}`, {
+        const response = await fetch(`http://localhost:5000/api/organizers/${numericId}`, {
           method: 'DELETE',
         });
         const result = await response.json();
@@ -68,7 +68,7 @@ const OrgMngWidget: React.FC = () => {
   const handleSearch = async () => {
     if (searchId !== null && searchId >= 1) {
       try {
-        const response = await fetch(`http://localhost:5000/organizers/${searchId}`);
+        const response = await fetch(`http://localhost:5000/api/organizers/${searchId}`);
         if (!response.ok) {
           setError('Organizer not found');
           return;
@@ -90,7 +90,7 @@ const OrgMngWidget: React.FC = () => {
     }
     
     try {
-      const response = await fetch(`http://localhost:5000/organizers/${id}`);
+      const response = await fetch(`http://localhost:5000/api/organizers/${id}`);
       const data = await response.json();
       setEditingOrganizer(data);
       setEditForm({
@@ -129,7 +129,7 @@ const OrgMngWidget: React.FC = () => {
         password: editForm.password,
       };
       
-      const response = await fetch(`http://localhost:5000/organizers/${id}`, {
+      const response = await fetch(`http://localhost:5000/api/organizers/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),

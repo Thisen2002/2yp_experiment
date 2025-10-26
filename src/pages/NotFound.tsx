@@ -77,11 +77,11 @@ const NotFound: React.FC = () => {
             </Link>
             
             <Link 
-              to="/dashboard" 
+              to="/map" 
               className="p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 text-left"
             >
-              <div className="font-medium text-gray-900">Dashboard</div>
-              <div className="text-sm text-gray-500">Event dashboard</div>
+              <div className="font-medium text-gray-900">Map</div>
+              <div className="text-sm text-gray-500">View exhibits map</div>
             </Link>
             
             <Link 

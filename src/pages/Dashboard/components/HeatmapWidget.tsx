@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { MapPin, Thermometer, Activity, Clock, Users } from "lucide-react";
+import { MapPin, Activity, Clock, Users } from "lucide-react";
 import axios from "axios";
-import ChatClient from "./ChatClient";
 
 interface Building {
   id: string; // now string
@@ -92,17 +91,17 @@ other: {
 
         const [activityRes, peakRes, dwellRes] = await Promise.all([
           axios.get(
-            `http://localhost:5007/api/heatmap/activity-level?zone=${encodeURIComponent(
+            `http://localhost:5000/api/heatmap/activity-level?zone=${encodeURIComponent(
               zoneName
             )}&hours=${hours}&building=${encodeURIComponent(building)}`
           ),
           axios.get(
-            `http://localhost:5007/api/heatmap/peak-occupancy?zone=${encodeURIComponent(
+            `http://localhost:5000/api/heatmap/peak-occupancy?zone=${encodeURIComponent(
               zoneName
             )}&hours=${hours}&building=${encodeURIComponent(building)}`
           ),
           axios.get(
-            `http://localhost:5007/api/heatmap/avg-dwell-time?zone=${encodeURIComponent(
+            `http://localhost:5000/api/heatmap/avg-dwell-time?zone=${encodeURIComponent(
               zoneName
             )}&hours=${hours}&building=${encodeURIComponent(building)}`
           ),
@@ -161,24 +160,7 @@ other: {
         </select>
       </div>
 
-      {/* Heatmap & Chat */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/20 p-8 shadow-xl hover:shadow-2xl transition-all duration-300">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl text-white shadow-lg">
-              <Thermometer size={24} />
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900">Live Chat</h3>
-              <p className="text-gray-600">Real-time communication</p>
-            </div>
-          </div>
-          <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
-            Live Data
-          </div>
-        </div>
-        <ChatClient socketUrl="ws://localhost:5008" />
-      </div>
+
 
       {/* Analytics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

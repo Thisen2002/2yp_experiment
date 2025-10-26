@@ -12,17 +12,14 @@ interface UniversityFeature {
 }
 
 const HomePage: React.FC = () => {
-  // fixed useState destructuring so booleans work as expected
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [showScrollHint, setShowScrollHint] = useState<boolean>(true);
 
   useEffect(() => {
-    // small fade-in; optional and non-invasive
-    const t = setTimeout(() => setIsLoaded(true), 120);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setIsLoaded(true), 120);
+    return () => clearTimeout(timer);
   }, []);
 
-  // University data configuration (unchanged)
   const universityData = {
     foundedYear: 1950,
     currentYear: new Date().getFullYear(),
@@ -47,7 +44,6 @@ const HomePage: React.FC = () => {
     ]
   };
 
-  // University features and highlights (unchanged colours/text)
   const universityFeatures: UniversityFeature[] = [
     {
       id: 1,
@@ -83,18 +79,16 @@ const HomePage: React.FC = () => {
     const nextSection = document.getElementById('university-info');
     if (nextSection) {
       nextSection.scrollIntoView({ behavior: 'smooth' });
-      // optionally hide the hint after scrolling on small devices
-      if (window.innerWidth < 768) setShowScrollHint(false);
+      if (window.innerWidth < 768) {
+        setShowScrollHint(false);
+      }
     }
   };
 
   return (
     <>
-      <div
-        className={`min-h-screen flex flex-col transition-opacity duration-500 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-      >
+      <div className={`min-h-screen flex flex-col transition-opacity duration-500 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
         {/* Hero Section with Video */}
-        {/* Make hero height responsive so mobile doesn't feel too tall */}
         <section className="relative h-screen md:h-[90vh] lg:h-screen">
           <VideoHero
             videoSrc="/intro.mp4"
@@ -105,7 +99,7 @@ const HomePage: React.FC = () => {
             showControls={false}
           />
 
-          {/* Scroll Hint - smaller on phones, same content */}
+          {/* Scroll Hint */}
           {showScrollHint && (
             <div
               className="absolute bottom-6 sm:bottom-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-1 sm:gap-2 cursor-pointer text-white z-10"
@@ -119,12 +113,9 @@ const HomePage: React.FC = () => {
           )}
         </section>
 
-        {/* University Information Section (kept as-is, layout handled by the component) */}
+        {/* University Information Section */}
         <section id="university-info" className="relative z-[2]">
-          <UniversityInfo
-            data={universityData}
-            layout="default"
-          />
+          <UniversityInfo data={universityData} layout="default" />
         </section>
 
         {/* University Features Section */}
@@ -134,8 +125,7 @@ const HomePage: React.FC = () => {
               Why Choose University of Peradeniya
             </h2>
 
-            {/* Responsive grid: keeps your auto-fit helper but also uses Tailwind cols for robust behavior */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 auto-fit-minmax-280">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
               {universityFeatures.map((feature) => {
                 const IconComponent = feature.icon;
                 return (
@@ -163,40 +153,9 @@ const HomePage: React.FC = () => {
         </section>
       </div>
 
-      {/* Keep your custom CSS but adjust responsive media queries for mobile-first behavior */}
       <style>{`
-        @keyframes bounce {
-          0%, 20%, 50%, 80%, 100% { 
-            transform: translateY(0); 
-          }
-          40% { 
-            transform: translateY(-10px); 
-          }
-          60% { 
-            transform: translateY(-5px); 
-          }
-        }
-
         .text-shadow-sm {
           text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        }
-
-        /* helper you already had - keep it but make queries mobile-friendly */
-        .auto-fit-minmax-280 {
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        }
-
-        /* smaller devices: force single column where needed */
-        @media (max-width: 640px) {
-          .auto-fit-minmax-280 {
-            grid-template-columns: 1fr;
-          }
-        }
-
-        @media (min-width: 641px) and (max-width: 900px) {
-          .auto-fit-minmax-280 {
-            grid-template-columns: repeat(2, 1fr);
-          }
         }
       `}</style>
     </>

@@ -48,7 +48,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, goToLogi
 
     try {
       // Send registration request to backend
-      const response = await axios.post("http://localhost:5000/auths/register", userData);
+      const response = await axios.post("http://localhost:5000/api/auth/register", userData);
 
       if (response.status === 201) {
         // On success, call onRegister to navigate to login page

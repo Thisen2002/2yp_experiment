@@ -4,76 +4,33 @@ import { Plus, ChevronDown, ChevronUp, Edit, Trash } from "lucide-react";
 
 interface Building {
   id: string;
-  building_id: number;
-  zone_id: number;
+  building_id: string;  // Changed to string to match API format (e.g., "B1", "B2")
   building_name: string;
-  description: string;
+  description?: string;
+  building_capacity?: number;
   exhibits: string[];
-  exhibit_tags: Record<string, string[]>;  // Changed to store multiple tags for each exhibit
+  exhibit_tags: Record<string, string[]>;  // Consistent format: exhibit name -> array of tag strings
 }
 
 const BuildingsWidget: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [tags] = useState<string[]>([
-    "AI","ICT","Structures","Mechanical","Civil","Power","Automation","Robotics","Electronics","Software"
-  ]);
+  const [tags, setTags] = useState<string[]>([]);
 
   const [formData, setFormData] = useState<Building>({
     id: "",
-    building_id: 0,
-    zone_id: 0,
+    building_id: "",
     building_name: "",
     description: "",
+    building_capacity: 0,
     exhibits: [],
     exhibit_tags: {}, // Initially empty object
   });
 
   const [newExhibit, setNewExhibit] = useState<string>("");
 
-  // Hardcoded building IDs
-  const [zoneBuildings] = useState<{
-    [key: string]: { name: string; id: number }[];
-  }>({
-    "1": [
-      { name: "Drawing Office 2", id: 22 },
-      { name: "Department of Manufacturing and Industrial Engineering", id: 28 },
-      { name: "Corridor", id: 23 },
-      { name: "Lecture Room(middle-right)", id: 24 },
-      { name: "Structures Laboratory", id: 25 },
-      { name: "Lecture Room(bottom-right)", id: 26 },
-      { name: "Engineering Library", id: 27 },
-    ],
-    "2": [
-      { name: "Drawing Office 1", id: 3 },
-      { name: "Professor E.O.E. Pereira Theatre", id: 4 },
-      { name: "Administrative Building", id: 5 },
-      { name: "Security Unit", id: 6 },
-      { name: "Department of Chemical and Process Engineering", id: 1 },
-      { name: "Department Engineering Mathematics", id: 2 },
-    ],
-    "3": [
-      { name: "Department of Electrical and Electronic Engineering", id: 8 },
-      { name: "Department of Computer Engineering", id: 9 },
-      { name: "Electrical and Electronic Workshop", id: 10 },
-      { name: "Surveying Lab", id: 11 },
-      { name: "Soil Lab", id: 12 },
-      { name: "Materials Lab", id: 13 },
-    ],
-    "4": [
-      { name: "Fluids Lab", id: 15 },
-      { name: "New Mechanics Lab", id: 16 },
-      { name: "Applied Mechanics Lab", id: 17 },
-      { name: "Thermodynamics Lab", id: 18 },
-      { name: "Generator Room", id: 19 },
-      { name: "Engineering Workshop", id: 20 },
-      { name: "Engineering Carpentry Shop", id: 21 },
-    ],
-    "5": [
-      { name: "Environmental Lab", id: 14 },
-    ],
-  });
+
 
   const token = localStorage.getItem("authToken");
 
@@ -84,76 +41,142 @@ const BuildingsWidget: React.FC = () => {
     },
   });
 
+  // Fetch tags
+  const fetchTags = async () => {
+    try {
+      const res = await axiosInstance.get("/api/buildings/tags");
+      setTags(res.data.tags || []);
+    } catch (err) {
+      console.error("Error fetching tags:", err);
+      // Fallback to hardcoded tags
+      setTags([
+        "AI","ICT","Structures","Mechanical","Civil","Power","Automation","Robotics","Electronics","Software"
+      ]);
+    }
+  };
+
   // Fetch buildings
-  useEffect(() => {
-    axiosInstance
-      .get("/buildings")
-      .then((res) => {
-        const formatted = res.data.map((b: any) => ({
-          ...b,
-          id: String(b.building_id),
-          exhibits: Array.isArray(b.exhibits) ? b.exhibits : [],
-          exhibit_tags: b.exhibit_tags && typeof b.exhibit_tags === "object" ? b.exhibit_tags : {},
-        }));
-        setBuildings(formatted);
-      })
-      .catch((err) => {
-        console.error("Error fetching buildings:", err);
-        if (err.response?.status === 401) {
-          window.location.href = "/login";
+  const fetchBuildings = async () => {
+    try {
+      const res = await axiosInstance.get("/api/buildings");
+      console.log("Raw API response:", res.data);
+      const formatted = res.data.map((b: any) => {
+        console.log("Processing building:", b.building_name, "exhibit_tags:", b.exhibit_tags);
+        
+        // Process exhibit_tags to handle the nested API structure
+        let processedExhibitTags: Record<string, string[]> = {};
+        if (b.exhibit_tags && typeof b.exhibit_tags === "object") {
+          Object.keys(b.exhibit_tags).forEach(exhibit => {
+            const exhibitData = b.exhibit_tags[exhibit];
+            
+            // Handle the nested structure: { "exhibit_name": { "exhibit_name": ["tag1", "tag2"] } }
+            if (exhibitData && typeof exhibitData === 'object') {
+              // Look for the tags array inside the nested object
+              const nestedTags = exhibitData[exhibit];
+              if (Array.isArray(nestedTags)) {
+                processedExhibitTags[exhibit] = nestedTags;
+              } else {
+                // Fallback: try to find any array in the nested object
+                const firstArrayValue = Object.values(exhibitData).find(val => Array.isArray(val));
+                processedExhibitTags[exhibit] = Array.isArray(firstArrayValue) ? firstArrayValue : [];
+              }
+            } else if (Array.isArray(exhibitData)) {
+              // Direct array (flat structure)
+              processedExhibitTags[exhibit] = exhibitData;
+            } else {
+              processedExhibitTags[exhibit] = [];
+            }
+          });
         }
+        
+        return {
+          ...b,
+          id: String(b.building_id), // Use building_id as the unique identifier
+          building_id: String(b.building_id), // Ensure building_id is a string
+          description: b.description || "", // Default empty description
+          exhibits: Array.isArray(b.exhibits) ? b.exhibits : [],
+          exhibit_tags: processedExhibitTags,
+        };
       });
+      console.log("Formatted buildings:", formatted);
+      setBuildings(formatted);
+    } catch (err: any) {
+      console.error("Error fetching buildings:", err);
+      if (err.response?.status === 401) {
+        window.location.href = "/login";
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchBuildings();
+    fetchTags();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.building_name || formData.zone_id < 1 || formData.building_id < 1) {
+    if (!formData.building_name || !formData.building_id) {
       alert("Please fill in all required fields.");
       return;
     }
 
     try {
       if (formData.id) {
-        // Update existing
-        await axiosInstance.put(`/buildings/${formData.building_id}`, {
-          zone_id: formData.zone_id,
-          building_name: formData.building_name,
-          description: formData.description,
-          exhibits: formData.exhibits,
-          exhibit_tags: formData.exhibit_tags, // Send multiple tags
+        // Find original building to compare exhibits
+        const originalBuilding = buildings.find(b => b.id === formData.id);
+        const originalExhibits = originalBuilding?.exhibits || [];
+        const newExhibits = formData.exhibits;
+
+        // Determine exhibits to remove
+        const exhibits_to_remove = originalExhibits
+          .filter(exhibit => !newExhibits.includes(exhibit));
+
+        // Send ALL current exhibits (both new and existing) with their current tags
+        // This ensures that tag updates for existing exhibits are also saved
+        const exhibits_to_add = newExhibits.map(exhibit => {
+          // Format tags in the nested structure the API expects
+          const tags = formData.exhibit_tags[exhibit] || [];
+          const nestedTags = { [exhibit]: tags };
+          
+          return {
+            exhibit_name: exhibit,
+            exhibit_tags: nestedTags
+          };
         });
 
-        setBuildings((prev) =>
-          prev.map((b) => (b.id === formData.id ? { ...b, ...formData } : b))
-        );
+        // Update existing building using the API structure
+        const updateData: any = {
+          building_name: formData.building_name,
+          building_capacity: formData.building_capacity || null,
+        };
+
+        // Always send exhibits_to_add to update all exhibit tags
+        if (exhibits_to_add.length > 0) {
+          updateData.exhibits_to_add = exhibits_to_add;
+        }
+
+        if (exhibits_to_remove.length > 0) {
+          updateData.exhibits_to_remove = exhibits_to_remove;
+        }
+
+        console.log("Sending update data:", updateData);
+        await axiosInstance.put(`/api/buildings/${formData.building_id}`, updateData);
+
+        // Refresh buildings list to get updated data
+        await fetchBuildings();
 
         alert("Building updated successfully");
       } else {
-        // Create new
-        const res = await axiosInstance.post("/buildings", {
-          building_id: formData.building_id,
-          zone_id: formData.zone_id,
-          building_name: formData.building_name,
-          description: formData.description,
-          exhibits: formData.exhibits,
-          exhibit_tags: formData.exhibit_tags, // Send multiple tags
-        });
-
-        if (res.status === 201) {
-          const newBuilding: Building = {
-            ...formData,
-            id: formData.building_id.toString(),
-          };
-          setBuildings((prev) => [...prev, newBuilding]);
-          alert("Building added successfully");
-        }
+        // Create new building - this functionality may need to be implemented in the backend
+        alert("Creating new buildings is not currently supported. Please contact an administrator.");
+        return;
       }
     } catch (err: any) {
       console.error("Error saving building:", err);
 
       if (err.response?.status === 409) {
-        alert("Building already added. Please use a unique name.");
+        alert("Building already exists or exhibit name conflict.");
       } else if (err.response?.data?.message) {
         alert(`Error: ${err.response.data.message}`);
       } else {
@@ -164,10 +187,10 @@ const BuildingsWidget: React.FC = () => {
     // Reset form
     setFormData({
       id: "",
-      building_id: 0,
-      zone_id: 0,
+      building_id: "",
       building_name: "",
       description: "",
+      building_capacity: 0,
       exhibits: [],
       exhibit_tags: {},
     });
@@ -176,9 +199,24 @@ const BuildingsWidget: React.FC = () => {
   };
 
   const handleEdit = (building: Building) => {
+    console.log("Editing building:", building.building_name);
+    console.log("Original building data:", building);
+    console.log("Exhibit tags:", building.exhibit_tags);
+    
+    // Ensure all exhibits have entry in exhibit_tags
+    const processedExhibitTags: Record<string, string[]> = { ...building.exhibit_tags };
+    
+    building.exhibits?.forEach(exhibit => {
+      if (!processedExhibitTags[exhibit]) {
+        processedExhibitTags[exhibit] = [];
+      }
+    });
+    
+    console.log("Processed exhibit_tags for editing:", processedExhibitTags);
+    
     setFormData({
       ...building,
-      exhibit_tags: building.exhibit_tags || {}, // Ensure exhibit_tags is an object
+      exhibit_tags: processedExhibitTags,
     });
     setNewExhibit("");
     setShowForm(true);
@@ -188,22 +226,20 @@ const BuildingsWidget: React.FC = () => {
     const building = buildings.find((b) => b.id === id);
     if (!building) return;
 
+    if (!confirm(`Are you sure you want to delete "${building.building_name}"?`)) {
+      return;
+    }
+
     try {
-      await axiosInstance.delete(`/buildings/${building.building_id}`);
-      setBuildings((prev) => prev.filter((b) => b.id !== id));
+      await axiosInstance.delete(`/api/buildings/${building.building_id}`);
+      await fetchBuildings(); // Refresh the list
     } catch (err) {
       console.error("Error deleting building:", err);
+      alert("Error deleting building. It may not be deletable through this interface.");
     }
   };
 
-  const handleZoneChange = (zoneId: number) => {
-    setFormData({
-      ...formData,
-      zone_id: zoneId,
-      building_name: "",
-      building_id: 0,
-    });
-  };
+
 
   const addExhibit = () => {
     const trimmed = newExhibit.trim();
@@ -236,14 +272,16 @@ const BuildingsWidget: React.FC = () => {
   };
 
   const addTagToExhibit = (exhibit: string, tag: string) => {
+    console.log(`Adding tag "${tag}" to exhibit "${exhibit}"`);
     setFormData((prev) => {
       const updatedTags = { ...prev.exhibit_tags };
-      if (!updatedTags[exhibit]) {
+      if (!Array.isArray(updatedTags[exhibit])) {
         updatedTags[exhibit] = [];
       }
       if (!updatedTags[exhibit].includes(tag)) {
         updatedTags[exhibit].push(tag);
       }
+      console.log("Updated tags after adding:", updatedTags);
       return {
         ...prev,
         exhibit_tags: updatedTags,
@@ -252,9 +290,13 @@ const BuildingsWidget: React.FC = () => {
   };
 
   const removeTagFromExhibit = (exhibit: string, tag: string) => {
+    console.log(`Removing tag "${tag}" from exhibit "${exhibit}"`);
     setFormData((prev) => {
       const updatedTags = { ...prev.exhibit_tags };
-      updatedTags[exhibit] = updatedTags[exhibit].filter((t) => t !== tag);
+      if (Array.isArray(updatedTags[exhibit])) {
+        updatedTags[exhibit] = updatedTags[exhibit].filter((t: any) => t !== tag);
+      }
+      console.log("Updated tags after removing:", updatedTags);
       return {
         ...prev,
         exhibit_tags: updatedTags,
@@ -265,16 +307,21 @@ const BuildingsWidget: React.FC = () => {
   const renderExhibitsSummary = (b: Building) => {
     if (!b.exhibits?.length) return "No exhibits available";
     return b.exhibits.map((ex) => {
-      const tags = b.exhibit_tags?.[ex];
+      const tags = b.exhibit_tags?.[ex] || [];
+      console.log(`Rendering exhibit "${ex}":`, tags);
+      
       return (
         <div key={ex}>
           <span className="font-semibold">{ex}</span>:{" "}
-          {tags?.map((tag, index) => (
-            <span key={index} className="text-gray-600">
-              {tag}
-              {index < tags.length - 1 && ", "}
-            </span>
-          ))}
+          {Array.isArray(tags) && tags.length > 0 ? (
+            tags.map((tag, index) => (
+              <span key={index} className="text-blue-600 bg-blue-100 px-2 py-1 rounded text-sm mr-1">
+                {tag}
+              </span>
+            ))
+          ) : (
+            <span className="text-gray-400 italic">No tags</span>
+          )}
         </div>
       );
     });
@@ -300,46 +347,31 @@ const BuildingsWidget: React.FC = () => {
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block font-medium mb-1">Zone ID</label>
-                <select
-                  value={formData.zone_id}
-                  onChange={(e) => handleZoneChange(Number(e.target.value))}
+                <label className="block font-medium mb-1">Building ID</label>
+                <input
+                  type="text"
+                  value={formData.building_id}
+                  onChange={(e) =>
+                    setFormData({ ...formData, building_id: e.target.value })
+                  }
                   className="w-full border p-2 rounded"
-                >
-                  <option value={0}>Select Zone</option>
-                  <option value={1}>A</option>
-                  <option value={2}>B</option>
-                  <option value={3}>C</option>
-                  <option value={4}>D</option>
-                  <option value={5}>Other</option>
-                </select>
+                  placeholder="Enter building ID (e.g., B1, B2)"
+                  required
+                />
               </div>
 
               <div>
                 <label className="block font-medium mb-1">Building Name</label>
-                <select
+                <input
+                  type="text"
                   value={formData.building_name}
                   onChange={(e) =>
-                    setFormData((prev) => {
-                      const zb = zoneBuildings[String(prev.zone_id)] || [];
-                      const chosen = zb.find((b) => b.name === e.target.value);
-                      return {
-                        ...prev,
-                        building_name: e.target.value,
-                        building_id: chosen?.id || 0,
-                      };
-                    })
+                    setFormData({ ...formData, building_name: e.target.value })
                   }
                   className="w-full border p-2 rounded"
-                  disabled={!formData.zone_id}
-                >
-                  <option value="">Select Building</option>
-                  {(zoneBuildings[String(formData.zone_id)] || []).map((building) => (
-                    <option key={building.id} value={building.name}>
-                      {building.name} (ID: {building.id})
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Enter building name"
+                  required
+                />
               </div>
 
               <div>
@@ -351,6 +383,19 @@ const BuildingsWidget: React.FC = () => {
                     setFormData({ ...formData, description: e.target.value })
                   }
                 ></textarea>
+              </div>
+
+              <div>
+                <label className="block font-medium mb-1">Building Capacity</label>
+                <input
+                  type="number"
+                  value={formData.building_capacity || ''}
+                  placeholder="Enter capacity"
+                  className="w-full border p-2 rounded"
+                  onChange={(e) =>
+                    setFormData({ ...formData, building_capacity: parseInt(e.target.value) || 0 })
+                  }
+                />
               </div>
 
               <div>
@@ -383,17 +428,51 @@ const BuildingsWidget: React.FC = () => {
                         <span className="font-medium">{exhibit}</span>
                       </div>
                       <div className="sm:col-span-5">
-                        <div className="flex flex-wrap gap-2">
-                          {tags.map((t) => (
-                            <button
-                              type="button"
-                              key={t}
-                              onClick={() => addTagToExhibit(exhibit, t)}
-                              className={`px-2 py-1 border rounded ${formData.exhibit_tags[exhibit]?.includes(t) ? "bg-blue-600 text-white" : ""}`}
-                            >
-                              {t}
-                            </button>
-                          ))}
+                        {/* Selected Tags */}
+                        <div className="mb-2">
+                          <div className="text-xs text-gray-600 mb-1">Selected Tags:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {Array.isArray(formData.exhibit_tags[exhibit]) ? formData.exhibit_tags[exhibit].map((selectedTag: any) => (
+                              <span
+                                key={selectedTag}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
+                              >
+                                {selectedTag}
+                                <button
+                                  type="button"
+                                  onClick={() => removeTagFromExhibit(exhibit, selectedTag)}
+                                  className="text-blue-600 hover:text-blue-800"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            )) : null}
+                            {(!Array.isArray(formData.exhibit_tags[exhibit]) || formData.exhibit_tags[exhibit].length === 0) && (
+                              <span className="text-gray-400 text-xs">No tags selected</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Available Tags */}
+                        <div>
+                          <div className="text-xs text-gray-600 mb-1">Available Tags:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {tags
+                              .filter(t => !(formData.exhibit_tags[exhibit] || []).includes(t))
+                              .map((t) => (
+                                <button
+                                  type="button"
+                                  key={t}
+                                  onClick={() => addTagToExhibit(exhibit, t)}
+                                  className="px-2 py-1 border rounded text-xs hover:bg-gray-100"
+                                >
+                                  {t}
+                                </button>
+                              ))}
+                            {tags.filter(t => !(formData.exhibit_tags[exhibit] || []).includes(t)).length === 0 && (
+                              <span className="text-gray-400 text-xs">All tags selected</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="sm:col-span-1 text-right">
@@ -448,15 +527,15 @@ const BuildingsWidget: React.FC = () => {
                   <span className="font-semibold">Building ID:</span> {b.building_id}
                 </p>
                 <p>
-                  <span className="font-semibold">Zone ID:</span> {b.zone_id}
+                  <span className="font-semibold">Capacity:</span> {b.building_capacity || 'Not specified'}
                 </p>
                 <p>
                   <span className="font-semibold">Description:</span> {b.description}
                 </p>
-                <p>
+                <div>
                   <span className="font-semibold">Exhibits:</span>{" "}
                   {renderExhibitsSummary(b)}
-                </p>
+                </div>
 
                 <div className="flex gap-3 mt-2">
                   <button
