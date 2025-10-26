@@ -4,7 +4,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Information from './pages/Information';
 import NotFound from './pages/NotFound';
-// import AppKiosk from './pages/kiosk/AppTailwind';
+import AppKiosk from './pages/kiosk/AppTailwind';
 import AppDashboard from './pages/Dashboard/AppDash';
 import Appevents from "./pages/Events/Appevents"
 import CrowdManagement from './pages/Heatmap/CrowdManagement';
@@ -25,7 +25,7 @@ function AppContent() {
           <Route path="/" element={<HomePage />} />
           <Route path="/crowd-management" element={<CrowdManagement />} />
           <Route path="/information" element={<Information />} />
-          {/* <Route path="/kiosk" element={<AppKiosk />} /> */}
+          <Route path="/kiosk" element={<AppKiosk />} />
           <Route path="/dashboard/*" element={<AppDashboard />} />
           <Route path="*" element={<NotFound />} />
           <Route path="/events/*" element={<Appevents />} />

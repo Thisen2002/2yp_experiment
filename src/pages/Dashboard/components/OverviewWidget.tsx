@@ -72,7 +72,7 @@ const OverviewWidget: React.FC = () => {
       setLoading(true);
 
       try {
-        const baseURL = "http://localhost:5006/analytics";
+        const baseURL = "http://localhost:5000/api/analytics";
         console.log(`Fetching data for building: ${building}`);
 
         const [
@@ -205,10 +205,10 @@ const OverviewWidget: React.FC = () => {
 
       {/* 📊 Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {[{ label: "Total Attendees", value: stats.totalVisitors, change: "+12%", icon: Users, color: "blue" },
-        { label: "Check-ins", value: stats.totalCheckIns, change: "+8%", icon: MapPin, color: "green" },
-        { label: "Avg. Session Time", value: stats.avgDuration, change: "+15%", icon: Clock, color: "purple" },
-        { label: "Repeat Visitors", value: stats.repeatVisitors, change: "+10%", icon: BarChart3, color: "yellow" }].map((stat, i) => {
+        {[{ label: "Total Attendees", value: stats.totalVisitors, icon: Users, color: "blue" },
+        { label: "Check-ins", value: stats.totalCheckIns, icon: MapPin, color: "green" },
+        { label: "Avg. Session Time", value: stats.avgDuration, icon: Clock, color: "purple" },
+        { label: "Repeat Visitors", value: stats.repeatVisitors, icon: BarChart3, color: "yellow" }].map((stat, i) => {
           const Icon = stat.icon;
           return (
             <div
@@ -224,10 +224,6 @@ const OverviewWidget: React.FC = () => {
                     className={`p-3 rounded-xl bg-gradient-to-br ${getColorClasses(stat.color)} text-white shadow-lg group-hover:scale-110 transition-transform duration-300`}
                   >
                     <Icon size={24} />
-                  </div>
-                  <div className="flex items-center space-x-1 px-2 py-1 bg-green-100 rounded-full">
-                    <TrendingUp size={14} className="text-green-600" />
-                    <span className="text-sm font-semibold text-green-700">{stat.change}</span>
                   </div>
                 </div>
                 <p className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</p>

@@ -36,7 +36,8 @@ const register = async (req, res) => {
              RETURNING organizer_ID, organizer_name, fname, lname, email AS username, contact_no, status`,
             [organizer_name, fname, lname, email, contact_no || null, password_hash, 'pending']
         );
-
+        console.log("Register Result:", result.rows[0]);
+        console.log("Admin Email:", ADMIN_EMAIL);
         // Send approval email to admin
         const approvalLink = `${process.env.BASE_URL}/api/auth/approve/${result.rows[0].organizer_id}`;
         await sendApprovalEmail(ADMIN_EMAIL, {

@@ -10,17 +10,23 @@ interface Exhibit {
 }
 
 interface BuildingResponse {
-  building_id: number;
+  building_id: string;
   building_name: string;
+  building_capacity: number;
   exhibits: string[];
-  zone_id: number;
   exhibit_tags: {
-    [key: string]: string[];
+    [key: string]: {
+      [key: string]: string[];
+    };
   };
 }
 
-// Predefined tags - moved outside component to avoid re-renders
-const PREDEFINED_TAGS: string[] = [
+interface TagsResponse {
+  tags: string[];
+}
+
+// Default tags - will be replaced with API data
+const DEFAULT_TAGS: string[] = [
   'AI', 'ICT', 'Structures', 'Mechanical', 'Civil', 
   'Power', 'Automation', 'Robotics', 'Electronics', 'Software'
 ]
@@ -31,45 +37,119 @@ interface ExhibitsPageTailwindProps {}
 const ExhibitsPageTailwind: React.FC<ExhibitsPageTailwindProps> = () => {
   // State management
   const [allExhibits, setAllExhibits] = useState<Exhibit[]>([]) // All exhibits
+  const [availableTags, setAvailableTags] = useState<string[]>(DEFAULT_TAGS) // Dynamic tags from API
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedTag, setSelectedTag] = useState<string>('') // Empty for all
   const [searchQuery, setSearchQuery] = useState<string>('') // Search input
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false) // Dropdown state
 
-  // Color mapping for different tag categories
+  // Dynamic color generation for any tag
   const getTagColor = (tag: string): { bg: string; text: string; border: string } => {
-    const colors = {
-      'AI': { bg: '#001affff', text: '#FFFFFF', border: '#001affff' }, // Dark Blue
-      'ICT': { bg: '#098beeff', text: '#FFFFFF', border: '#098beeff' }, // Blue
-      'Structures': { bg: '#eea933ff', text: '#FFFFFF', border: '#eea933ff' }, // Amber
-      'Mechanical': { bg: '#a5a74dff', text: '#FFFFFF', border: '#a5a74dff' }, // Red
-      'Civil': { bg: '#EC4899', text: '#FFFFFF', border: '#EC4899' }, // Pink
-      'Power': { bg: '#8b9894ff', text: '#FFFFFF', border: '#8b9894ff' }, // Emerald
-      'Automation': { bg: '#06B6D4', text: '#FFFFFF', border: '#06B6D4' }, // Cyan
-      'Robotics': { bg: '#9658b6ff', text: '#FFFFFF', border: '#9658b6ff' }, // Purple
-      'Electronics': { bg: '#c57b70ff', text: '#FFFFFF', border: '#c57b70ff' }, // Orange
-      'Software': { bg: '#37795dff', text: '#FFFFFF', border: '#37795dff' }, // Indigo
+    // Predefined colors for known tags
+    const predefinedColors = {
+      'AI': { bg: '#4F46E5', text: '#FFFFFF', border: '#6366F1' }, // Indigo
+      'ICT': { bg: '#0EA5E9', text: '#FFFFFF', border: '#0284C7' }, // Sky Blue
+      'Structures': { bg: '#F59E0B', text: '#FFFFFF', border: '#D97706' }, // Amber
+      'Mechanical': { bg: '#EF4444', text: '#FFFFFF', border: '#DC2626' }, // Red
+      'Civil': { bg: '#EC4899', text: '#FFFFFF', border: '#DB2777' }, // Pink
+      'Power': { bg: '#10B981', text: '#FFFFFF', border: '#059669' }, // Emerald
+      'Automation': { bg: '#06B6D4', text: '#FFFFFF', border: '#0891B2' }, // Cyan
+      'Robotics': { bg: '#8B5CF6', text: '#FFFFFF', border: '#7C3AED' }, // Violet
+      'Electronics': { bg: '#F97316', text: '#FFFFFF', border: '#EA580C' }, // Orange
+      'Software': { bg: '#22C55E', text: '#FFFFFF', border: '#16A34A' }, // Green
     }
-    return colors[tag as keyof typeof colors] || { bg: '#6B7280', text: '#FFFFFF', border: '#9CA3AF' } // Default gray
+
+    // If tag has predefined color, use it
+    if (predefinedColors[tag as keyof typeof predefinedColors]) {
+      return predefinedColors[tag as keyof typeof predefinedColors]
+    }
+
+    // Generate unique color based on tag name for API tags
+    const generateColorFromString = (str: string) => {
+      let hash = 0
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash)
+      }
+      
+      // Convert to HSL for better color distribution
+      const hue = Math.abs(hash) % 360
+      const saturation = 65 + (Math.abs(hash) % 20) // 65-85% saturation
+      const lightness = 45 + (Math.abs(hash) % 15)  // 45-60% lightness
+      
+      const hslToHex = (h: number, s: number, l: number) => {
+        l /= 100
+        const a = s * Math.min(l, 1 - l) / 100
+        const f = (n: number) => {
+          const k = (n + h / 30) % 12
+          const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)
+          return Math.round(255 * color).toString(16).padStart(2, '0')
+        }
+        return `#${f(0)}${f(8)}${f(4)}`
+      }
+      
+      const bgColor = hslToHex(hue, saturation, lightness)
+      // Darken for border
+      const borderColor = hslToHex(hue, saturation, Math.max(lightness - 10, 30))
+      
+      return {
+        bg: bgColor,
+        text: '#FFFFFF',
+        border: borderColor
+      }
+    }
+
+    return generateColorFromString(tag)
   }
+
+  // Fetch available tags from API
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 
+                      import.meta.env.VITE_UNIFIED_BACKEND_URL || 
+                      'http://localhost:5000'
+        
+        const response = await fetch(`${apiUrl}/api/buildings/tags`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+        
+        if (response.ok) {
+          const data: TagsResponse = await response.json()
+          setAvailableTags(data.tags || DEFAULT_TAGS)
+        } else {
+          console.warn('Could not fetch tags, using defaults')
+          setAvailableTags(DEFAULT_TAGS)
+        }
+      } catch (err) {
+        console.warn('Error fetching tags:', err)
+        setAvailableTags(DEFAULT_TAGS)
+      }
+    }
+    
+    fetchTags()
+  }, [])
 
   // Fetch exhibits data from API
   useEffect(() => {
     // Transform building response to exhibit format
-    const transformBuildingToExhibits = (buildings: BuildingResponse[], tag: string): Exhibit[] => {
+    const transformBuildingToExhibits = (buildings: BuildingResponse[]): Exhibit[] => {
       const exhibits: Exhibit[] = []
       
       buildings.forEach(building => {
         building.exhibits.forEach((exhibitName, index) => {
           // Extract all tags for this exhibit from exhibit_tags with proper null checking
-          const exhibitTags = (building.exhibit_tags && building.exhibit_tags[exhibitName]) || ['Other']
-          const primaryTag = exhibitTags[0] || tag || 'Other'
+          const exhibitTagsObj = building.exhibit_tags?.[exhibitName]?.[exhibitName] || ['Other']
+          const exhibitTags = Array.isArray(exhibitTagsObj) ? exhibitTagsObj : ['Other']
+          const primaryTag = exhibitTags[0] || 'Other'
           
           exhibits.push({
             exhibit_id: `${building.building_id}-${index}`,
             exhibit_name: exhibitName,
-            location: `Zone ${building.zone_id}`,
+            location: `Building ${building.building_name}`,
             building_name: building.building_name,
             tag: primaryTag, // Primary tag for compatibility
             tags: exhibitTags // All tags for this exhibit
@@ -85,17 +165,27 @@ const ExhibitsPageTailwind: React.FC<ExhibitsPageTailwindProps> = () => {
         setLoading(true)
         setError(null)
         
+        // Use environment variable or fallback to unified backend port
+        const apiUrl = import.meta.env.VITE_API_URL || 
+                      import.meta.env.VITE_UNIFIED_BACKEND_URL || 
+                      'http://localhost:5000'
+        
         let url: string
         
         if (selectedTag) {
           // Use filterByTag for specific tags
-          url = `http://localhost:5003/buildings/filterByTag?tag=${selectedTag}`
+          url = `${apiUrl}/api/buildings/filterByTag?tag=${selectedTag}`
         } else {
-          // Use filterByTag without parameters for all categories
-          url = `http://localhost:5003/buildings/filterByTag`
+          // Get all buildings
+          url = `${apiUrl}/api/buildings`
         }
         
-        const response = await fetch(url)
+        const response = await fetch(url, {
+          credentials: 'include', // Include cookies for session management
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
         
         if (!response.ok) {
           // Handle 404 specifically - no exhibits found for this tag
@@ -108,9 +198,10 @@ const ExhibitsPageTailwind: React.FC<ExhibitsPageTailwindProps> = () => {
         }
         
         const data: BuildingResponse[] = await response.json()
+        console.log('📋 Buildings API Response:', data)
         
         // Transform the building data to exhibit format
-        const exhibitData = transformBuildingToExhibits(data, selectedTag || 'Other')
+        const exhibitData = transformBuildingToExhibits(data)
         setAllExhibits(exhibitData)
       } catch (err) {
         console.error('Error fetching exhibits:', err)
@@ -230,7 +321,7 @@ const ExhibitsPageTailwind: React.FC<ExhibitsPageTailwindProps> = () => {
                   >
                     All Categories
                   </button>
-                  {PREDEFINED_TAGS.map((tag) => {
+                  {availableTags.map((tag: string) => {
                     const tagColors = getTagColor(tag)
                     const isActive = selectedTag === tag
                     return (
@@ -316,23 +407,49 @@ const ExhibitsPageTailwind: React.FC<ExhibitsPageTailwindProps> = () => {
                 className="bg-transparent backdrop-blur-xl rounded-2xl border-2 border-[rgba(59,130,246,0.6)] p-6 shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all duration-300 hover:transform hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(0,0,0,0.4)] animate-slideIn"
                 style={{animationDelay: `${index * 0.1}s`}}
               >
-                {/* Multiple Tag Badges */}
-                <div className="absolute top-4 right-4 flex gap-2 max-w-none justify-end overflow-x-auto whitespace-nowrap">
-                  {exhibit.tags.map((tagName, tagIndex) => (
-                    <div 
-                      key={tagIndex}
-                      className="px-3 py-1 rounded-full text-white text-sm font-bold shadow-lg border-2 flex-shrink-0"
-                      style={{ 
-                        backgroundColor: getTagColor(tagName).bg,
-                        borderColor: getTagColor(tagName).border,
-                        color: getTagColor(tagName).text
-                      }}
-                    >
-                      <span>
-                        {tagName.toUpperCase()}
-                      </span>
-                    </div>
-                  ))}
+                {/* Multiple Tag Badges with Animated Movement */}
+                <div className="absolute top-4 right-4 max-w-[300px] overflow-hidden">
+                  <div 
+                    className={`flex gap-2 whitespace-nowrap ${
+                      exhibit.tags.length > 2 ? 'animate-scroll-tags' : ''
+                    }`}
+                    style={{
+                      animationDuration: `${Math.max(exhibit.tags.length * 2, 4)}s`
+                    }}
+                  >
+                    {exhibit.tags.map((tagName, tagIndex) => (
+                      <div 
+                        key={tagIndex}
+                        className="px-3 py-1 rounded-full text-white text-sm font-bold shadow-lg border-2 flex-shrink-0 hover:scale-110 transition-transform duration-200"
+                        style={{ 
+                          backgroundColor: getTagColor(tagName).bg,
+                          borderColor: getTagColor(tagName).border,
+                          color: getTagColor(tagName).text,
+                          animationDelay: `${tagIndex * 0.2}s`
+                        }}
+                      >
+                        <span className="animate-pulse-subtle">
+                          {tagName.toUpperCase()}
+                        </span>
+                      </div>
+                    ))}
+                    {/* Duplicate tags for seamless loop when many tags */}
+                    {exhibit.tags.length > 2 && exhibit.tags.map((tagName, tagIndex) => (
+                      <div 
+                        key={`duplicate-${tagIndex}`}
+                        className="px-3 py-1 rounded-full text-white text-sm font-bold shadow-lg border-2 flex-shrink-0 hover:scale-110 transition-transform duration-200"
+                        style={{ 
+                          backgroundColor: getTagColor(tagName).bg,
+                          borderColor: getTagColor(tagName).border,
+                          color: getTagColor(tagName).text
+                        }}
+                      >
+                        <span className="animate-pulse-subtle">
+                          {tagName.toUpperCase()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 
                 {/* Exhibit Information */}
@@ -445,8 +562,29 @@ const ExhibitsPageTailwind: React.FC<ExhibitsPageTailwindProps> = () => {
             from { opacity: 0; transform: translateX(-20px); }
             to { opacity: 1; transform: translateX(0); }
           }
+          @keyframes scrollTags {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+          @keyframes pulseSubtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+          }
+          @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-3px); }
+          }
           .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
           .animate-slideIn { animation: slideIn 0.5s ease-out forwards; }
+          .animate-scroll-tags { 
+            animation: scrollTags linear infinite; 
+          }
+          .animate-pulse-subtle { 
+            animation: pulseSubtle 2s ease-in-out infinite; 
+          }
+          .hover\\:animate-float:hover { 
+            animation: float 1s ease-in-out infinite; 
+          }
         `
       }} />
       

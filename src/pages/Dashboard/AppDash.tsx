@@ -1,53 +1,28 @@
-import { useEffect, useState } from "react";
+import React, { useState } from "react";
 import OrganizerDashBoard from "./OrganizerDashBoard";
 import LoginPage from "./LoginPage";
 import RegisterPage from "./RegisterPage";
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
+// Simplified dashboard router: shows login, register or organizer dashboard.
+const AppDash: React.FC = () => {
+  // initialize from localStorage to avoid a mount effect
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => !!localStorage.getItem("authUser"));
+  const [showRegister, setShowRegister] = useState<boolean>(false);
 
-  useEffect(() => {
-    // Check if user is already logged in
-    const storedUser = localStorage.getItem("authUser");
-    if (storedUser) {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-  };
-
+  const handleLogin = () => setIsAuthenticated(true);
   const handleLogout = () => {
     localStorage.removeItem("authUser");
     setIsAuthenticated(false);
   };
 
-  const handleGoToRegister = () => {
-    setShowRegister(true);
-  };
+  // Toggle register/login view
+  const goToRegister = () => setShowRegister(true);
+  const goToLogin = () => setShowRegister(false);
+  const handleRegister = () => setShowRegister(false);
 
-  const handleGoToLogin = () => {
-    setShowRegister(false);
-  };
+  if (isAuthenticated) return <OrganizerDashBoard onLogout={handleLogout} />;
+  if (showRegister) return <RegisterPage onRegister={handleRegister} goToLogin={goToLogin} />;
+  return <LoginPage onLogin={handleLogin} goToRegister={goToRegister} />;
+};
 
-  const handleRegister = () => {
-    // After successful registration, go to login page
-    setShowRegister(false);
-  };
-
-  return (
-    <>
-      {isAuthenticated ? (
-        <OrganizerDashBoard onLogout={handleLogout} />
-      ) : showRegister ? (
-        <RegisterPage onRegister={handleRegister} goToLogin={handleGoToLogin} />
-      ) : (
-        <LoginPage onLogin={handleLogin} goToRegister={handleGoToRegister} />
-      )}
-    </>
-  );
-}
-
-export default App;
+export default AppDash;

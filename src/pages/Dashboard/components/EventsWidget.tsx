@@ -3,92 +3,82 @@ import { Plus, ChevronDown, ChevronUp, Edit, Trash, X } from "lucide-react";
 import axios from "axios";
 
 interface EventItem {
-  id: number;
-  title: string;
+  event_id: number;
+  event_title: string;
   categories: string[];
-  date: string;
-  startTime: string;
-  endTime: string;
+  start_time: string;
+  end_time: string;
   location: string;
-  media_urls: string;
+  card_image_location: string;
   description: string;
+  interested_count: number;
+}
+
+interface Category {
+  category_id: number;
+  category_name: string;
 }
 
 const EventsWidget: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
 
-  const [formData, setFormData] = useState<
-    Omit<EventItem, "id" | "categories"> & { id?: number; categories: string[] }
-  >({
-    title: "",
+  const [formData, setFormData] = useState<{
+    event_id?: number;
+    event_title: string;
+    categories: string[];
+    date: string; // For form input
+    startTime: string; // For form input  
+    endTime: string; // For form input
+    location: string;
+    card_image_location: string;
+    description: string;
+  }>({
+    event_title: "",
     categories: [],
     date: "",
     startTime: "",
     endTime: "",
     location: "",
-    media_urls: "",
+    card_image_location: "",
     description: "",
   });
 
   const [newCategory, setNewCategory] = useState("");
   const [customLocation, setCustomLocation] = useState("");
 
+  // Fetch categories
+  const fetchCategories = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_EVENTS_API_URL || 'http://localhost:3036';
+      const res = await axios.get(`${apiUrl}/api/categories`);
+      setCategories(res.data);
+    } catch (err) {
+      console.error("Error fetching categories:", err);
+    }
+  };
+
   // Fetch events
   const fetchEvents = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/events");
+      // Use the correct API endpoint from eventlist.routes.js
+      const apiUrl = import.meta.env.VITE_EVENTS_API_URL || 'http://localhost:3036';
+      const res = await axios.get(`${apiUrl}/api/events`);
 
-      const mapped = res.data.map((ev: any) => {
-        const start = ev.start_time ? new Date(ev.start_time) : null;
-        const end = ev.end_time ? new Date(ev.end_time) : null;
-
-        const formatDate = (d: Date | null) =>
-          d ? d.toLocaleDateString("en-CA") : "";
-        const formatTime = (d: Date | null) =>
-          d
-            ? d.toLocaleTimeString("en-GB", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "";
-
-        const cleanMediaUrls = (() => {
-          if (!ev.media_urls) return "";
-
-          let raw = ev.media_urls;
-          if (raw.startsWith("{") && raw.endsWith("}")) {
-            raw = raw.slice(1, -1);
-          }
-
-          try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) {
-              return parsed.join(", ");
-            }
-            if (typeof parsed === "string") {
-              return parsed;
-            }
-          } catch {
-            // fallback
-          }
-
-          return raw;
-        })();
-
-        return {
-          id: ev.event_id,
-          title: ev.event_name,
-          categories: ev.event_categories || [],
-          date: formatDate(start),
-          startTime: formatTime(start),
-          endTime: formatTime(end),
-          location: ev.location || "",
-          media_urls: cleanMediaUrls,
-          description: ev.description || "",
-        };
-      });
+      // Map the API response to match our EventItem interface
+      const mapped = res.data.map((ev: any) => ({
+        event_id: ev.event_id,
+        event_title: ev.event_title,
+        categories: ev.categories || [],
+        start_time: ev.start_time,
+        end_time: ev.end_time,
+        location: ev.location || "",
+        card_image_location: ev.card_image_location || "",
+        description: ev.description || "",
+        interested_count: ev.interested_count || 0
+      }));
 
       setEvents(mapped);
     } catch (err) {
@@ -98,6 +88,7 @@ const EventsWidget: React.FC = () => {
 
   useEffect(() => {
     fetchEvents();
+    fetchCategories();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,35 +98,32 @@ const EventsWidget: React.FC = () => {
     const finalLocation =
       formData.location === "Other" ? customLocation : formData.location;
 
-    const startISO =
-      formData.date && formData.startTime
-        ? `${formData.date}T${formData.startTime}:00`
-        : null;
-    const endISO =
-      formData.date && formData.endTime
-        ? `${formData.date}T${formData.endTime}:00`
-        : null;
-
-    const mediaArray = formData.media_urls
-      ? formData.media_urls.split(",").map((url) => url.trim())
-      : [];
+    // Convert date and time inputs to ISO strings
+    const startISO = formData.date && formData.startTime 
+      ? `${formData.date}T${formData.startTime}:00` 
+      : null;
+    const endISO = formData.date && formData.endTime 
+      ? `${formData.date}T${formData.endTime}:00` 
+      : null;
 
     const payload = {
-      event_name: formData.title,
+      event_name: formData.event_title,
       event_categories: formData.categories,
       start_time: startISO,
       end_time: endISO,
       location: finalLocation,
       description: formData.description,
-      media_urls: mediaArray,
+      card_image_location: formData.card_image_location,
     };
 
     try {
-      if (formData.id) {
-        await axios.put(`http://localhost:5000/events/${formData.id}`, payload);
+      const apiUrl = import.meta.env.VITE_EVENTS_API_URL || 'http://localhost:3036';
+      
+      if (formData.event_id) {
+        await axios.put(`${apiUrl}/api/events/${formData.event_id}`, payload);
         alert("Event updated successfully!");
       } else {
-        await axios.post("http://localhost:5000/events", payload);
+        await axios.post(`${apiUrl}/api/events`, payload);
         alert("Event created successfully!");
       }
       await fetchEvents();
@@ -143,22 +131,22 @@ const EventsWidget: React.FC = () => {
       console.error("Error saving event:", err);
       if (err.response) {
         alert(
-          "Update failed: " +
-            (err.response.data.message || JSON.stringify(err.response.data))
+          "Operation failed: " +
+            (err.response.data.error || err.response.data.message || JSON.stringify(err.response.data))
         );
       } else {
-        alert("Update failed: check console for details.");
+        alert("Operation failed: check console for details.");
       }
     }
 
     setFormData({
-      title: "",
+      event_title: "",
       categories: [],
       date: "",
       startTime: "",
       endTime: "",
       location: "",
-      media_urls: "",
+      card_image_location: "",
       description: "",
     });
     setCustomLocation("");
@@ -167,15 +155,22 @@ const EventsWidget: React.FC = () => {
   };
 
   const handleEdit = (event: EventItem) => {
+    // Convert ISO datetime strings back to date and time for form inputs
+    const startDate = new Date(event.start_time);
+    const endDate = new Date(event.end_time);
+    
+    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    const formatTime = (d: Date) => d.toTimeString().slice(0, 5);
+    
     setFormData({
-      id: event.id,
-      title: event.title,
+      event_id: event.event_id,
+      event_title: event.event_title,
       categories: [...event.categories],
-      date: event.date,
-      startTime: event.startTime,
-      endTime: event.endTime,
+      date: formatDate(startDate),
+      startTime: formatTime(startDate),
+      endTime: formatTime(endDate),
       location: event.location,
-      media_urls: event.media_urls,
+      card_image_location: event.card_image_location,
       description: event.description,
     });
 
@@ -225,7 +220,8 @@ const EventsWidget: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      await axios.delete(`http://localhost:5000/events/${id}`);
+      const apiUrl = import.meta.env.VITE_EVENTS_API_URL || 'http://localhost:3036';
+      await axios.delete(`${apiUrl}/api/events/${id}`);
       fetchEvents();
     } catch (err) {
       console.error("Error deleting event:", err);
@@ -255,13 +251,13 @@ const EventsWidget: React.FC = () => {
         <button
           onClick={() => {
             setFormData({
-              title: "",
+              event_title: "",
               categories: [],
               date: "",
               startTime: "",
               endTime: "",
               location: "",
-              media_urls: "",
+              card_image_location: "",
               description: "",
             });
             setCustomLocation("");
@@ -279,7 +275,7 @@ const EventsWidget: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-4">
-              {formData.id ? "Edit Event" : "Add Event"}
+              {formData.event_id ? "Edit Event" : "Add Event"}
             </h3>
             <form onSubmit={handleSubmit} className="space-y-3">
               {/* Title */}
@@ -287,9 +283,9 @@ const EventsWidget: React.FC = () => {
                 <label className="block font-medium mb-1">Title</label>
                 <input
                   type="text"
-                  value={formData.title}
+                  value={formData.event_title}
                   onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
+                    setFormData({ ...formData, event_title: e.target.value })
                   }
                   className="w-full border rounded p-2"
                   required
@@ -306,12 +302,11 @@ const EventsWidget: React.FC = () => {
                     className="flex-1 border rounded p-2"
                   >
                     <option value="">-- Select Category --</option>
-                    <option value="Music">Music</option>
-                    <option value="Sports">Sports</option>
-                    <option value="Education">Education</option>
-                    <option value="Tech">Tech</option>
-                    <option value="Networking">Networking</option>
-                    <option value="Other">Other</option>
+                    {categories.map((cat) => (
+                      <option key={cat.category_id} value={cat.category_name}>
+                        {cat.category_name}
+                      </option>
+                    ))}
                   </select>
                   <button
                     type="button"
@@ -446,18 +441,19 @@ const EventsWidget: React.FC = () => {
                 )}
               </div>
 
-              {/* Media URLs */}
+              {/* Card Image Location */}
               <div>
                 <label className="block font-medium mb-1">
-                  Media URLs (comma-separated)
+                  Card Image URL
                 </label>
                 <input
                   type="text"
-                  value={formData.media_urls}
+                  value={formData.card_image_location}
                   onChange={(e) =>
-                    setFormData({ ...formData, media_urls: e.target.value })
+                    setFormData({ ...formData, card_image_location: e.target.value })
                   }
                   className="w-full border rounded p-2"
+                  placeholder="https://example.com/image.jpg"
                 />
               </div>
 
@@ -486,7 +482,7 @@ const EventsWidget: React.FC = () => {
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
-                  {formData.id ? "Update" : "Create"}
+                  {formData.event_id ? "Update" : "Create"}
                 </button>
               </div>
             </form>
@@ -497,42 +493,45 @@ const EventsWidget: React.FC = () => {
       {/* Events List */}
       <div className="space-y-3">
         {events.map((ev) => (
-          <div key={ev.id} className="border rounded-lg bg-white shadow-sm">
+          <div key={ev.event_id} className="border rounded-lg bg-white shadow-sm">
             <button
-              onClick={() => setExpanded(expanded === ev.id ? null : ev.id)}
+              onClick={() => setExpanded(expanded === ev.event_id ? null : ev.event_id)}
               className="w-full flex justify-between items-center px-4 py-3 text-left font-medium hover:bg-gray-50"
             >
-              {ev.title} (ID: {ev.id})
-              {expanded === ev.id ? (
+              {ev.event_title} (ID: {ev.event_id})
+              {expanded === ev.event_id ? (
                 <ChevronUp size={18} />
               ) : (
                 <ChevronDown size={18} />
               )}
             </button>
-            {expanded === ev.id && (
+            {expanded === ev.event_id && (
               <div className="px-4 pb-4 space-y-2">
                 <p>
                   <span className="font-semibold">Categories:</span>{" "}
                   {ev.categories.join(", ")}
                 </p>
                 <p>
-                  <span className="font-semibold">Date:</span> {ev.date}
+                  <span className="font-semibold">Start Time:</span> {new Date(ev.start_time).toLocaleString()}
                 </p>
                 <p>
-                  <span className="font-semibold">Time:</span> {ev.startTime} -{" "}
-                  {ev.endTime}
+                  <span className="font-semibold">End Time:</span> {new Date(ev.end_time).toLocaleString()}
                 </p>
                 <p>
                   <span className="font-semibold">Location:</span>{" "}
                   {ev.location}
                 </p>
                 <p>
-                  <span className="font-semibold">Media URLs:</span>{" "}
-                  {ev.media_urls}
+                  <span className="font-semibold">Card Image:</span>{" "}
+                  {ev.card_image_location}
                 </p>
                 <p>
                   <span className="font-semibold">Description:</span>{" "}
                   {ev.description}
+                </p>
+                <p>
+                  <span className="font-semibold">Interested Count:</span>{" "}
+                  {ev.interested_count}
                 </p>
                 <div className="flex gap-3 mt-2">
                   <button
@@ -542,7 +541,7 @@ const EventsWidget: React.FC = () => {
                     <Edit size={14} className="inline-block mr-1" /> Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(ev.id)}
+                    onClick={() => handleDelete(ev.event_id)}
                     className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
                   >
                     <Trash size={14} className="inline-block mr-1" /> Delete

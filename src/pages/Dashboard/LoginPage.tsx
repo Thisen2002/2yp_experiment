@@ -23,7 +23,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, goToRegister }) =
 
     // Make POST request to login endpoint
     try {
-      const response = await axios.post("http://localhost:5000/auths/login", {
+      const response = await axios.post("http://localhost:5000/api/auth/login", {
         email,
         password,
       });

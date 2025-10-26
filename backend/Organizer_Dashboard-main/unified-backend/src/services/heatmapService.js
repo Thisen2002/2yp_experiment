@@ -46,21 +46,38 @@ function queryWithTimeout(queryText, params, timeoutMs = 20000) {
 async function getPeakOccupancyByZoneAndBuilding(durationHours, zone, building) {
   const hours = validateDuration(durationHours);
   const buildings = getBuildingsForZoneAndBuilding(zone, building);
+  
+  // Calculate peak occupancy by counting concurrent visitors at any point in time
   const query = `
+    WITH time_series AS (
+      SELECT building_id, entry_time as event_time, 1 as change
+      FROM entry_exit_log
+      WHERE building_id = ANY($1)
+        AND entry_time >= NOW() - INTERVAL '${hours} hours'
+      UNION ALL
+      SELECT building_id, exit_time as event_time, -1 as change
+      FROM entry_exit_log
+      WHERE building_id = ANY($1)
+        AND exit_time IS NOT NULL
+        AND exit_time >= NOW() - INTERVAL '${hours} hours'
+    ),
+    running_totals AS (
+      SELECT building_id,
+             event_time,
+             SUM(change) OVER (PARTITION BY building_id ORDER BY event_time) as concurrent_visitors
+      FROM time_series
+      ORDER BY building_id, event_time
+    )
     SELECT building_id as building,
-           SUM(CASE WHEN direction = 'IN' THEN 1 ELSE -1 END) AS net_occupancy
-    FROM "EntryExitLog"
-    WHERE building_id = ANY($1)
-      AND entry_time >= NOW() - INTERVAL '${hours} hours'
+           COALESCE(MAX(concurrent_visitors), 0) as peak_occupancy
+    FROM running_totals
     GROUP BY building_id
     ORDER BY building_id;
   `;
+  
   try {
     const { rows } = await queryWithTimeout(query, [buildings]);
-    return rows.map(row => ({
-      building: row.building,
-      peak_occupancy: Math.max(row.net_occupancy, 0),
-    }));
+    return rows;
   } catch (error) {
     console.error('Error in getPeakOccupancy:', error);
     throw error;
@@ -70,16 +87,19 @@ async function getPeakOccupancyByZoneAndBuilding(durationHours, zone, building) 
 async function getAvgDwellTimeByZoneAndBuilding(durationHours, zone, building) {
   const hours = validateDuration(durationHours);
   const buildings = getBuildingsForZoneAndBuilding(zone, building);
+  
   const query = `
     SELECT building_id AS building,
-           AVG(EXTRACT(EPOCH FROM (exit_time - entry_time)) / 60) AS avg_dwell_time_minutes
-    FROM "EntryExitLog"
+           ROUND(AVG(EXTRACT(EPOCH FROM session_duration) / 60)::numeric, 2) AS avg_dwell_time_minutes
+    FROM entry_exit_log
     WHERE building_id = ANY($1)
       AND entry_time >= NOW() - INTERVAL '${hours} hours'
       AND exit_time IS NOT NULL
+      AND session_duration IS NOT NULL
     GROUP BY building_id
     ORDER BY building_id;
   `;
+  
   try {
     const { rows } = await queryWithTimeout(query, [buildings]);
     return rows;
@@ -92,22 +112,25 @@ async function getAvgDwellTimeByZoneAndBuilding(durationHours, zone, building) {
 async function getActivityLevelByZoneAndBuilding(durationHours, zone, building) {
   const hours = validateDuration(durationHours);
   const buildings = getBuildingsForZoneAndBuilding(zone, building);
+  
   const query = `
     SELECT building_id AS building,
-           COUNT(DISTINCT tag_id) AS unique_visitors,
-           COUNT(CASE WHEN direction = 'IN' THEN 1 END) AS entries,
-           COUNT(CASE WHEN direction = 'OUT' THEN 1 END) AS exits
-    FROM "EntryExitLog"
+           COUNT(DISTINCT visitor_id) AS unique_visitors,
+           COUNT(*) AS total_entries,
+           COUNT(CASE WHEN exit_time IS NOT NULL THEN 1 END) AS completed_visits,
+           COUNT(CASE WHEN exit_time IS NULL THEN 1 END) AS current_visitors
+    FROM entry_exit_log
     WHERE building_id = ANY($1)
       AND entry_time >= NOW() - INTERVAL '${hours} hours'
     GROUP BY building_id
     ORDER BY building_id;
   `;
+  
   try {
     const { rows } = await queryWithTimeout(query, [buildings]);
     return rows.map(row => ({
       ...row,
-      activity_level: row.unique_visitors > 100 ? 'High' : row.unique_visitors > 30 ? 'Medium' : 'Low',
+      activity_level: row.unique_visitors > 50 ? 'High' : row.unique_visitors > 20 ? 'Medium' : 'Low',
     }));
   } catch (error) {
     console.error('Error in getActivityLevel:', error);
