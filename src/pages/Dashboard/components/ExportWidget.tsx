@@ -44,7 +44,7 @@ const ExportWidget: React.FC = () => {
     try {
       // Determine correct API path for backend routes
       const pathSegment = format.toLowerCase(); // "pdf" or "csv"
-      const url = `http://localhost:5005/api/export/${apiPath}/${pathSegment}/${day}`;
+      const url = `http://localhost:5500/api/export/${apiPath}/${pathSegment}/${day}`;
 
       const response = await axios.get(url, { responseType: "blob" });
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { MapPin, Thermometer, Activity, Clock, Users } from "lucide-react";
+import { Thermometer, Activity, Clock, Users } from "lucide-react";
 import axios from "axios";
 import ChatClient from "./ChatClient";
 
@@ -23,9 +23,14 @@ const HeatmapWidget: React.FC = () => {
   const [zoneFilter, setZoneFilter] = useState("zoneA");
 
   // State for API data
-  const [apiData, setApiData] = useState<any | null>(null);
+  interface ApiData {
+    activity_level?: Array<{ building: string; activity_level: string }>;
+    peak_occupancy?: Array<{ building: string; peak_occupancy: number }>;
+    avg_dwell_time?: Array<{ building: string; avg_dwell_time_minutes: number }>;
+  }
+  const [apiData, setApiData] = useState<ApiData | null>(null);
 
-  const allZones: Record<string, Zone> = {
+  const allZones: Record<string, Zone> = useMemo(() => ({
     zoneA: {
   name: "Zone A",
   buildings: [
@@ -80,7 +85,7 @@ other: {
   ],
 },
 
-  };
+  }), []);
 
   // Fetch API data whenever filters change
   useEffect(() => {
@@ -92,17 +97,17 @@ other: {
 
         const [activityRes, peakRes, dwellRes] = await Promise.all([
           axios.get(
-            `http://localhost:5007/api/heatmap/activity-level?zone=${encodeURIComponent(
+            `http://localhost:3897/api/heatmap/activity-level?zone=${encodeURIComponent(
               zoneName
             )}&hours=${hours}&building=${encodeURIComponent(building)}`
           ),
           axios.get(
-            `http://localhost:5007/api/heatmap/peak-occupancy?zone=${encodeURIComponent(
+            `http://localhost:3897/api/heatmap/peak-occupancy?zone=${encodeURIComponent(
               zoneName
             )}&hours=${hours}&building=${encodeURIComponent(building)}`
           ),
           axios.get(
-            `http://localhost:5007/api/heatmap/avg-dwell-time?zone=${encodeURIComponent(
+            `http://localhost:3897/api/heatmap/avg-dwell-time?zone=${encodeURIComponent(
               zoneName
             )}&hours=${hours}&building=${encodeURIComponent(building)}`
           ),
@@ -119,11 +124,11 @@ other: {
     };
 
     fetchAnalytics();
-  }, [zoneFilter, timeFilter]);
+  }, [zoneFilter, timeFilter, allZones]);
 
   const filteredBuildings = useMemo(
     () => allZones[zoneFilter]?.buildings || [],
-    [zoneFilter]
+    [zoneFilter, allZones]
   );
 
   const colorClasses: Record<string, string> = {
@@ -185,17 +190,17 @@ other: {
         {filteredBuildings.map((b) => {
           const peakFromApi =
           apiData?.peak_occupancy?.find(
-            (p: any) => p.building === b.id
+            (p) => p.building === b.id
           )?.peak_occupancy ?? b.peak;
 
         const dwellFromApi =
           apiData?.avg_dwell_time?.find(
-            (d: any) => d.building === b.id
+            (d) => d.building === b.id
           )?.avg_dwell_time_minutes ?? b.dwell;
 
         const activityFromApi =
           apiData?.activity_level?.find(
-            (a: any) => a.building === b.id
+            (a) => a.building === b.id
           )?.activity_level ?? b.activity;
 
           return (

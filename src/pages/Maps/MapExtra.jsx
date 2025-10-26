@@ -556,6 +556,28 @@ export default function MapExtra({kiosk_mode=false}) {
           margin: 0 !important;
           padding: 0 !important;
         }
+        /* Testing mode indicator */
+        .testing-mode-badge {
+          position: fixed;
+          top: 20px;
+          left: 20px;
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+          color: white;
+          padding: 10px 16px;
+          border-radius: 8px;
+          font-weight: 700;
+          font-size: 14px;
+          z-index: 10002;
+          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.8; }
+        }
         /* Ensure fixed elements stay truly fixed */
         /* Removed mobile search bar styles - not needed */
         @media (max-width: 640px){
@@ -572,8 +594,24 @@ export default function MapExtra({kiosk_mode=false}) {
           /* Mobile limitless map */
           #map{height: 100vh !important; width: 100vw !important;}
           /* Removed mobile search bar styles - not needed */
+          .testing-mode-badge {
+            top: 10px;
+            left: 10px;
+            padding: 8px 12px;
+            font-size: 12px;
+          }
         }
       `}</style>
+
+      {/* Testing Mode Indicator */}
+      <div className="testing-mode-badge">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" fill="white" fillOpacity="0.9"/>
+          <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <span>🧪 TEST MODE: Fake GPS</span>
+      </div>
+
       <MapComponent />
 
       {/* Removed Mobile Search Bar - not needed for this component */}

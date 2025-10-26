@@ -7,7 +7,7 @@ const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   database: process.env.DB_NAME || 'organizer_dashboard',
 
-  password: process.env.DB_PASSWORD || '200209601231',
+  password: process.env.DB_PASSWORD || '1323',
 
   port: process.env.DB_PORT || 5432,
 });

@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { BarChart3, Map as HeatMap, MessageSquare, Download, Building2, X, Menu, Calendar } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-type Section = 'overview' | 'heatmaps' | 'feedback' | 'export' | 'buildings' | 'organizers';  // Added 'organizers'
+type Section = 'overview' | 'heatmaps' | 'feedback' | 'export' | 'buildings' | 'events' | 'organizers';
 
 interface SidebarProps {
   isOpen: boolean;

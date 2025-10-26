@@ -10,8 +10,8 @@ interface EventItem {
   startTime: string;
   endTime: string;
   location: string;
-  media_urls: string;
   description: string;
+  card_image_location?: string;
 }
 
 const EventsWidget: React.FC = () => {
@@ -28,8 +28,8 @@ const EventsWidget: React.FC = () => {
     startTime: "",
     endTime: "",
     location: "",
-    media_urls: "",
     description: "",
+    card_image_location: "",
   });
 
   const [newCategory, setNewCategory] = useState("");
@@ -38,9 +38,18 @@ const EventsWidget: React.FC = () => {
   // Fetch events
   const fetchEvents = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/events");
+      const res = await axios.get("http://localhost:3036/api/events");
 
-      const mapped = res.data.map((ev: any) => {
+      const mapped = res.data.map((ev: {
+        event_id: number;
+        event_title: string;
+        start_time?: string;
+        end_time?: string;
+        location?: string;
+        description?: string;
+        event_categories?: string[];
+        card_image_location?: string;
+      }) => {
         const start = ev.start_time ? new Date(ev.start_time) : null;
         const end = ev.end_time ? new Date(ev.end_time) : null;
 
@@ -54,39 +63,16 @@ const EventsWidget: React.FC = () => {
               })
             : "";
 
-        const cleanMediaUrls = (() => {
-          if (!ev.media_urls) return "";
-
-          let raw = ev.media_urls;
-          if (raw.startsWith("{") && raw.endsWith("}")) {
-            raw = raw.slice(1, -1);
-          }
-
-          try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) {
-              return parsed.join(", ");
-            }
-            if (typeof parsed === "string") {
-              return parsed;
-            }
-          } catch {
-            // fallback
-          }
-
-          return raw;
-        })();
-
         return {
           id: ev.event_id,
-          title: ev.event_name,
+          title: ev.event_title,
           categories: ev.event_categories || [],
           date: formatDate(start),
           startTime: formatTime(start),
           endTime: formatTime(end),
           location: ev.location || "",
-          media_urls: cleanMediaUrls,
           description: ev.description || "",
+          card_image_location: ev.card_image_location || "",
         };
       });
 
@@ -116,10 +102,6 @@ const EventsWidget: React.FC = () => {
         ? `${formData.date}T${formData.endTime}:00`
         : null;
 
-    const mediaArray = formData.media_urls
-      ? formData.media_urls.split(",").map((url) => url.trim())
-      : [];
-
     const payload = {
       event_name: formData.title,
       event_categories: formData.categories,
@@ -127,24 +109,25 @@ const EventsWidget: React.FC = () => {
       end_time: endISO,
       location: finalLocation,
       description: formData.description,
-      media_urls: mediaArray,
+      card_image_location: formData.card_image_location,
     };
 
     try {
       if (formData.id) {
-        await axios.put(`http://localhost:5000/events/${formData.id}`, payload);
+        await axios.put(`http://localhost:3036/api/events/${formData.id}`, payload);
         alert("Event updated successfully!");
       } else {
-        await axios.post("http://localhost:5000/events", payload);
+        await axios.post("http://localhost:3036/api/events", payload);
         alert("Event created successfully!");
       }
       await fetchEvents();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error saving event:", err);
-      if (err.response) {
+      if (err instanceof Error && 'response' in err) {
+        const axiosError = err as { response?: { data?: { message?: string } } };
         alert(
           "Update failed: " +
-            (err.response.data.message || JSON.stringify(err.response.data))
+            (axiosError.response?.data?.message || JSON.stringify(axiosError.response?.data))
         );
       } else {
         alert("Update failed: check console for details.");
@@ -158,8 +141,8 @@ const EventsWidget: React.FC = () => {
       startTime: "",
       endTime: "",
       location: "",
-      media_urls: "",
       description: "",
+      card_image_location: "",
     });
     setCustomLocation("");
     setNewCategory("");
@@ -175,8 +158,8 @@ const EventsWidget: React.FC = () => {
       startTime: event.startTime,
       endTime: event.endTime,
       location: event.location,
-      media_urls: event.media_urls,
       description: event.description,
+      card_image_location: event.card_image_location || "",
     });
 
     // If location is not in the dropdown list, pre-fill as "Other" + customLocation
@@ -225,7 +208,7 @@ const EventsWidget: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      await axios.delete(`http://localhost:5000/events/${id}`);
+      await axios.delete(`http://localhost:3036/api/events/${id}`);
       fetchEvents();
     } catch (err) {
       console.error("Error deleting event:", err);
@@ -261,8 +244,8 @@ const EventsWidget: React.FC = () => {
               startTime: "",
               endTime: "",
               location: "",
-              media_urls: "",
               description: "",
+              card_image_location: "",
             });
             setCustomLocation("");
             setNewCategory("");
@@ -446,16 +429,16 @@ const EventsWidget: React.FC = () => {
                 )}
               </div>
 
-              {/* Media URLs */}
+              {/* Card Image Location */}
               <div>
                 <label className="block font-medium mb-1">
-                  Media URLs (comma-separated)
+                  Card Image URL
                 </label>
                 <input
                   type="text"
-                  value={formData.media_urls}
+                  value={formData.card_image_location}
                   onChange={(e) =>
-                    setFormData({ ...formData, media_urls: e.target.value })
+                    setFormData({ ...formData, card_image_location: e.target.value })
                   }
                   className="w-full border rounded p-2"
                 />
@@ -502,7 +485,7 @@ const EventsWidget: React.FC = () => {
               onClick={() => setExpanded(expanded === ev.id ? null : ev.id)}
               className="w-full flex justify-between items-center px-4 py-3 text-left font-medium hover:bg-gray-50"
             >
-              {ev.title} (ID: {ev.id})
+               {ev.title}
               {expanded === ev.id ? (
                 <ChevronUp size={18} />
               ) : (
@@ -511,6 +494,9 @@ const EventsWidget: React.FC = () => {
             </button>
             {expanded === ev.id && (
               <div className="px-4 pb-4 space-y-2">
+                <p>
+                  <span className="font-semibold">ID:</span> {ev.id}
+                </p>
                 <p>
                   <span className="font-semibold">Categories:</span>{" "}
                   {ev.categories.join(", ")}
@@ -525,10 +511,6 @@ const EventsWidget: React.FC = () => {
                 <p>
                   <span className="font-semibold">Location:</span>{" "}
                   {ev.location}
-                </p>
-                <p>
-                  <span className="font-semibold">Media URLs:</span>{" "}
-                  {ev.media_urls}
                 </p>
                 <p>
                   <span className="font-semibold">Description:</span>{" "}

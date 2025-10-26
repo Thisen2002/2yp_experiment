@@ -78,7 +78,7 @@ const BuildingsWidget: React.FC = () => {
   const token = localStorage.getItem("authToken");
 
   const axiosInstance = axios.create({
-    baseURL: "http://localhost:5000",
+    baseURL: "http://localhost:5003",
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -89,7 +89,14 @@ const BuildingsWidget: React.FC = () => {
     axiosInstance
       .get("/buildings")
       .then((res) => {
-        const formatted = res.data.map((b: any) => ({
+        const formatted = res.data.map((b: {
+          building_id: number;
+          building_name: string;
+          zone_id: number;
+          description: string;
+          exhibits?: string[];
+          exhibit_tags?: Record<string, string[]>;
+        }) => ({
           ...b,
           id: String(b.building_id),
           exhibits: Array.isArray(b.exhibits) ? b.exhibits : [],
@@ -149,13 +156,18 @@ const BuildingsWidget: React.FC = () => {
           alert("Building added successfully");
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error saving building:", err);
 
-      if (err.response?.status === 409) {
-        alert("Building already added. Please use a unique name.");
-      } else if (err.response?.data?.message) {
-        alert(`Error: ${err.response.data.message}`);
+      if (err instanceof Error && 'response' in err) {
+        const axiosError = err as { response?: { status?: number; data?: { message?: string } } };
+        if (axiosError.response?.status === 409) {
+          alert("Building already added. Please use a unique name.");
+        } else if (axiosError.response?.data?.message) {
+          alert(`Error: ${axiosError.response.data.message}`);
+        } else {
+          alert("An unexpected error occurred while saving the building.");
+        }
       } else {
         alert("An unexpected error occurred while saving the building.");
       }
@@ -244,17 +256,6 @@ const BuildingsWidget: React.FC = () => {
       if (!updatedTags[exhibit].includes(tag)) {
         updatedTags[exhibit].push(tag);
       }
-      return {
-        ...prev,
-        exhibit_tags: updatedTags,
-      };
-    });
-  };
-
-  const removeTagFromExhibit = (exhibit: string, tag: string) => {
-    setFormData((prev) => {
-      const updatedTags = { ...prev.exhibit_tags };
-      updatedTags[exhibit] = updatedTags[exhibit].filter((t) => t !== tag);
       return {
         ...prev,
         exhibit_tags: updatedTags,

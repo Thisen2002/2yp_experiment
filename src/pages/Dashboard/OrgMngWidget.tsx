@@ -1,13 +1,36 @@
 import React, { useState, useEffect } from 'react';
 
+interface Organizer {
+  organizer_ID?: number;
+  id?: number;
+  organizerId?: number;
+  organizer_id?: number;
+  organizer_name?: string;
+  fname?: string;
+  Fname?: string;
+  lname?: string;
+  Lname?: string;
+  email?: string;
+  contact_no?: string;
+  password?: string;
+}
+
+interface EditForm {
+  fname: string;
+  lname: string;
+  email: string;
+  contact_no: string;
+  password: string;
+}
+
 const OrgMngWidget: React.FC = () => {
-  const [organizers, setOrganizers] = useState<any[]>([]);
+  const [organizers, setOrganizers] = useState<Organizer[]>([]);
   const [searchId, setSearchId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Editing state
-  const [editingOrganizer, setEditingOrganizer] = useState<any | null>(null);
-  const [editForm, setEditForm] = useState<any>({
+  const [editingOrganizer, setEditingOrganizer] = useState<Organizer | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({
     fname: '',
     lname: '',
     email: '',
@@ -21,7 +44,7 @@ const OrgMngWidget: React.FC = () => {
 
   const fetchOrganizers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/organizers');
+      const response = await fetch('http://localhost:5500/api/organizers');
       const data = await response.json();
       console.log('Fetched organizers data:', data); // Debug log
       setOrganizers(data);
@@ -48,7 +71,7 @@ const OrgMngWidget: React.FC = () => {
 
     if (window.confirm('Are you sure you want to delete this organizer?')) {
       try {
-        const response = await fetch(`http://localhost:5000/organizers/${numericId}`, {
+        const response = await fetch(`http://localhost:5500/api/organizers/${numericId}`, {
           method: 'DELETE',
         });
         const result = await response.json();
@@ -68,7 +91,7 @@ const OrgMngWidget: React.FC = () => {
   const handleSearch = async () => {
     if (searchId !== null && searchId >= 1) {
       try {
-        const response = await fetch(`http://localhost:5000/organizers/${searchId}`);
+        const response = await fetch(`http://localhost:5500/api/organizers/${searchId}`);
         if (!response.ok) {
           setError('Organizer not found');
           return;
@@ -76,13 +99,14 @@ const OrgMngWidget: React.FC = () => {
         const data = await response.json();
         setOrganizers([data]);
       } catch (error) {
+        console.error('Search error:', error);
         setError('Failed to fetch organizer by ID.');
       }
     }
   };
 
   // Edit logic
-  const handleEditClick = async (organizer: any) => {
+  const handleEditClick = async (organizer: Organizer) => {
     const id = organizer.organizer_ID || organizer.id || organizer.organizerId || organizer.organizer_id;
     if (!id) {
       alert('Invalid organizer ID. Cannot edit this organizer.');
@@ -90,7 +114,7 @@ const OrgMngWidget: React.FC = () => {
     }
     
     try {
-      const response = await fetch(`http://localhost:5000/organizers/${id}`);
+      const response = await fetch(`http://localhost:5500/api/organizers/${id}`);
       const data = await response.json();
       setEditingOrganizer(data);
       setEditForm({
@@ -101,6 +125,7 @@ const OrgMngWidget: React.FC = () => {
         password: '',
       });
     } catch (error) {
+      console.error('Edit fetch error:', error);
       alert('Failed to fetch organizer details.');
     }
   };
@@ -129,7 +154,7 @@ const OrgMngWidget: React.FC = () => {
         password: editForm.password,
       };
       
-      const response = await fetch(`http://localhost:5000/organizers/${id}`, {
+      const response = await fetch(`http://localhost:5500/api/organizers/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -146,6 +171,7 @@ const OrgMngWidget: React.FC = () => {
       );
       setEditingOrganizer(null);
     } catch (error) {
+      console.error('Update error:', error);
       alert('Failed to update organizer.');
     }
   };

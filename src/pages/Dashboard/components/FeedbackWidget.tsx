@@ -13,6 +13,7 @@ interface Feedback {
   comment: string;
   visitor: string;
   created_at: string;
+  eventName?: string;
 }
 
 interface Event {
@@ -49,42 +50,42 @@ const FeedbackWidget: React.FC = () => {
   }, []); // Empty dependency array ensures this effect runs only once when the component mounts
 
   // Fetch feedback for the selected event
-  const fetchFeedback = async () => {
+  const fetchFeedback = React.useCallback(async () => {
     if (eventId === 0) return; // Prevent fetch if eventId is not selected
     setLoading(true); // Start loading
     try {
-      const response = await axios.get(`http://localhost:3000/api/events/${eventId}/ratings/all`);
+      const response = await axios.get(`http://localhost:3036/api/events/${eventId}/ratings/all`);
       setFeedback(response.data.items); // Assuming 'items' is the array of feedback data
     } catch (error) {
       console.error("Error fetching feedback:", error);
     } finally {
       setLoading(false); // Stop loading once the data is fetched
     }
-  };
+  }, [eventId]);
 
   // Fetch event summary for overall rating, total reviews, and histogram
-  const fetchEventSummary = async () => {
+  const fetchEventSummary = React.useCallback(async () => {
     if (eventId === 0) return; // Prevent fetch if eventId is not selected
     try {
-      const response = await axios.get(`http://localhost:3000/api/events/${eventId}/ratings/summary`);
+      const response = await axios.get(`http://localhost:3036/api/events/${eventId}/ratings/summary`);
       setAverageRating(response.data.average); // Set the average rating
       setTotalReviews(response.data.count); // Set the total reviews count
       setHistogram(response.data.histogram); // Set the histogram data
     } catch (error) {
       console.error("Error fetching event summary:", error);
     }
-  };
+  }, [eventId]);
 
   useEffect(() => {
     if (eventId) {
       fetchFeedback(); // Fetch feedback whenever eventId changes
       fetchEventSummary(); // Fetch event summary whenever eventId changes
     }
-  }, [eventId]);
+  }, [eventId, fetchFeedback, fetchEventSummary]);
 
   // Helper function for sentiment color classes
   const getSentimentColor = (rating: number) => {
-    const colors = {
+    const colors: Record<number, string> = {
       1: "border-l-red-500 bg-red-50",
       2: "border-l-orange-500 bg-orange-50",
       3: "border-l-yellow-500 bg-yellow-50",
@@ -181,7 +182,7 @@ const FeedbackWidget: React.FC = () => {
           {feedback.length === 0 ? (
             <p className="text-gray-500 text-sm">No feedback available for this event.</p>
           ) : (
-            feedback.map((fb, i) => (
+            feedback.map((fb) => (
               <div key={fb.feedback_id} className={`border-l-4 p-4 rounded-lg ${getSentimentColor(fb.rating)}`}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -198,9 +199,11 @@ const FeedbackWidget: React.FC = () => {
                       <span className="text-sm text-gray-500">{new Date(fb.created_at).toLocaleString()}</span>
                     </div>
                     <p className="text-gray-700">{fb.comment}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Event: {fb.eventName}
-                    </p>
+                    {fb.eventName && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Event: {fb.eventName}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

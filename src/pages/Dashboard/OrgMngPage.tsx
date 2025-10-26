@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
+interface Organizer {
+  organizer_name: string;
+  fname: string;
+  lname: string;
+  email: string;
+  contact_no: string;
+  password: string;
+  organizer_id?: number;
+}
+
 const OrgMangPage: React.FC = () => {
   const { id } = useParams();  // Get the organizer ID from the URL
   const navigate = useNavigate(); // To redirect after saving
-  const [organizer, setOrganizer] = useState<any>({
+  const [organizer, setOrganizer] = useState<Organizer>({
     organizer_name: '',
     fname: '',
     lname: '',
@@ -12,7 +22,7 @@ const OrgMangPage: React.FC = () => {
     contact_no: '',
     password: ''
   });
-  const [organizers, setOrganizers] = useState<any[]>([]);
+  const [organizers, setOrganizers] = useState<Organizer[]>([]);
 
   useEffect(() => {
     if (!id) {
@@ -24,7 +34,7 @@ const OrgMangPage: React.FC = () => {
     const fetchOrganizer = async () => {
       try {
         console.log('Fetching organizer with ID:', id);  // Log the ID being used for the fetch
-        const response = await fetch(`http://localhost:5000/organizers/${id}`);
+        const response = await fetch(`http://localhost:5500/api/organizers/${id}`);
         const data = await response.json();
         
         // If no data is found, handle the case
@@ -46,7 +56,7 @@ const OrgMangPage: React.FC = () => {
     // Fetch all organizers for the table
     const fetchOrganizers = async () => {
       try {
-        const response = await fetch('http://localhost:5000/organizers');
+        const response = await fetch('http://localhost:5500/api/organizers');
         const data = await response.json();
         setOrganizers(data);
       } catch (error) {
@@ -65,7 +75,7 @@ const OrgMangPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch(`http://localhost:5000/organizers/${id}`, {
+      const response = await fetch(`http://localhost:5500/api/organizers/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(organizer),

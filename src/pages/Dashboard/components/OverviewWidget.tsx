@@ -72,7 +72,7 @@ const OverviewWidget: React.FC = () => {
       setLoading(true);
 
       try {
-        const baseURL = "http://localhost:5006/analytics";
+        const baseURL = "http://localhost:5500/analytics";
         console.log(`Fetching data for building: ${building}`);
 
         const [
@@ -99,15 +99,15 @@ const OverviewWidget: React.FC = () => {
         });
 
         const buildingStats: { [key: string]: number } = {};
-        buildingDataRes.data.forEach((item: any) => {
-          buildingStats[item.building] = parseInt(item.total_visitors);
+        buildingDataRes.data.forEach((item: { building: string; total_visitors: string | number }) => {
+          buildingStats[item.building] = parseInt(String(item.total_visitors));
         });
         setBuildingData(buildingStats);
 
         const sessions: Session[] = topSessionsRes.data
-          ? topSessionsRes.data.map((s: any) => ({
+          ? topSessionsRes.data.map((s: { building: string; visitors: string | number }) => ({
               name: s.building,
-              visitors: parseInt(s.visitors),
+              visitors: parseInt(String(s.visitors)),
               color: "blue",
             }))
           : [];

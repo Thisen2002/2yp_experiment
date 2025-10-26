@@ -23,7 +23,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, goToRegister }) =
 
     // Make POST request to login endpoint
     try {
-      const response = await axios.post("http://localhost:5000/auths/login", {
+      const response = await axios.post("http://localhost:5500/api/auths/login", {
         email,
         password,
       });
@@ -39,7 +39,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, goToRegister }) =
         // After login, navigate to the overview page
         navigate("dashboard/overview");  // Navigate to overview page
       }
-    } catch (err: any) {
+    } catch (err) {
       setLoading(false);  // Reset loading state after response
       if (axios.isAxiosError(err)) {
         if (err.response?.status === 400) {
