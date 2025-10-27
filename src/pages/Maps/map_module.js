@@ -77,7 +77,7 @@ function initMap(map_div) {
     maxZoom: 22,
     minZoom: 17,
     maxBounds: mapB,
-    maxBoundsViscosity: 1.0,
+    maxBoundsViscosity: 0.5,
     zoomControl: false,
   }).setView([7.253750, 80.592028], 18);
 
@@ -241,11 +241,12 @@ function drawRoute(result) {
       map.invalidateSize(); 
     }, 50);
 
-    if (result.snappedAt) {
-      setTimeout(() => {
-        focus(result.snappedAt); 
-      }, 700);
-    }
+    // Disabled auto-centering to allow free panning
+    // if (result.snappedAt) {
+    //   setTimeout(() => {
+    //     focus(result.snappedAt); 
+    //   }, 700);
+    // }
   } else {
     // Just clear, no new route to draw
     console.log("No result provided, route cleared");

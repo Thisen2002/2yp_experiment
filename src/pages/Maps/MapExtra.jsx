@@ -1,5 +1,7 @@
 import { use, useEffect, useRef, useState } from "react";
 import MapComponent from "./Map";
+import NodeVisualizer from './NodeVisualizer';
+
 import { 
   map,
   addBuildingClickListner,
@@ -30,6 +32,7 @@ export default function MapExtra({kiosk_mode=false}) {
   const [isClosing, setIsClosing] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showNodeVisualizer, setShowNodeVisualizer] = useState(false);
   const previousBuilding = useRef(null);
 
   // Removed mobile search functionality - not needed for this component
@@ -594,6 +597,67 @@ export default function MapExtra({kiosk_mode=false}) {
       </div>
 
       <MapComponent />
+
+      {/* Node Visualizer - Testing Tool */}
+      {map && showNodeVisualizer && <NodeVisualizer map={map} />}
+
+      {/* Node Visualizer Toggle Button */}
+      <button
+        onClick={() => setShowNodeVisualizer(!showNodeVisualizer)}
+        style={{
+          position: "fixed",
+          bottom: 20,
+          left: 20,
+          zIndex: 900,
+          background: showNodeVisualizer 
+            ? "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)" 
+            : "linear-gradient(135deg, #6b7280 0%, #4b5563 100%)",
+          color: "#ffffff",
+          border: "2px solid #ffffff",
+          borderRadius: 10,
+          padding: "10px 14px",
+          fontWeight: 600,
+          fontSize: "12px",
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          boxShadow: showNodeVisualizer
+            ? "0 4px 12px rgba(34, 197, 94, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)"
+            : "0 4px 12px rgba(107, 114, 128, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2)",
+          transition: "all 0.2s ease",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          touchAction: "manipulation",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = "scale(1.05)";
+          e.currentTarget.style.boxShadow = showNodeVisualizer
+            ? "0 6px 16px rgba(34, 197, 94, 0.5), 0 3px 6px rgba(0, 0, 0, 0.25)"
+            : "0 6px 16px rgba(107, 114, 128, 0.4), 0 3px 6px rgba(0, 0, 0, 0.25)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "scale(1)";
+          e.currentTarget.style.boxShadow = showNodeVisualizer
+            ? "0 4px 12px rgba(34, 197, 94, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)"
+            : "0 4px 12px rgba(107, 114, 128, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2)";
+        }}
+        title={showNodeVisualizer ? "Hide Node Visualizer" : "Show Node Visualizer"}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="3" stroke="white" strokeWidth="2" fill={showNodeVisualizer ? "white" : "none"}/>
+          <circle cx="6" cy="6" r="2" stroke="white" strokeWidth="2" fill={showNodeVisualizer ? "white" : "none"}/>
+          <circle cx="18" cy="6" r="2" stroke="white" strokeWidth="2" fill={showNodeVisualizer ? "white" : "none"}/>
+          <circle cx="6" cy="18" r="2" stroke="white" strokeWidth="2" fill={showNodeVisualizer ? "white" : "none"}/>
+          <circle cx="18" cy="18" r="2" stroke="white" strokeWidth="2" fill={showNodeVisualizer ? "white" : "none"}/>
+          <line x1="7.5" y1="7.5" x2="10.5" y2="10.5" stroke="white" strokeWidth="1.5" opacity={showNodeVisualizer ? "1" : "0.5"}/>
+          <line x1="16.5" y1="7.5" x2="13.5" y2="10.5" stroke="white" strokeWidth="1.5" opacity={showNodeVisualizer ? "1" : "0.5"}/>
+          <line x1="7.5" y1="16.5" x2="10.5" y2="13.5" stroke="white" strokeWidth="1.5" opacity={showNodeVisualizer ? "1" : "0.5"}/>
+          <line x1="16.5" y1="16.5" x2="13.5" y2="13.5" stroke="white" strokeWidth="1.5" opacity={showNodeVisualizer ? "1" : "0.5"}/>
+        </svg>
+        <span style={{ fontWeight: 700 }}>{showNodeVisualizer ? "Nodes ON" : "Nodes OFF"}</span>
+      </button>
 
       {/* Removed Mobile Search Bar - not needed for this component */}
 
