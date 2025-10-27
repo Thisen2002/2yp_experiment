@@ -1,7 +1,7 @@
 import { u } from "framer-motion/client";
 import L from "leaflet";
 import io, { Socket } from "socket.io-client";
-import mapping from "./mappings.json";
+import buildingMappings from "../../config/buildingMappings";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 🧪 TESTING CONFIGURATION - FAKE GPS LOCATION
@@ -77,7 +77,7 @@ function initMap(map_div) {
     maxZoom: 22,
     minZoom: 17,
     maxBounds: mapB,
-    maxBoundsViscosity: 1.0,
+    maxBoundsViscosity: 0.5,
     zoomControl: false,
   }).setView([7.253750, 80.592028], 18);
 
@@ -132,7 +132,25 @@ function initMap(map_div) {
 
   userMarkerLayer = L.layerGroup().addTo(map);
 
-
+  // Add map background click handler to deselect buildings
+  map.on('click', function(e) {
+    // Check if the click target is the map background (not a building)
+    const clickedElement = e.originalEvent.target;
+    
+    // If clicked on background (not an SVG building element with ID starting with 'b')
+    if (!clickedElement.id || !clickedElement.id.startsWith('b')) {
+      console.log("Map background clicked - deselecting building");
+      
+      // Clear building highlight - set back to "assigned" (normal clickable state)
+      if (prevBuildingId) {
+        setBuildingAccent(prevBuildingId, "assigned");
+        prevBuildingId = null;
+      }
+      
+      // Notify listeners (MapExtra) to close sheet and stop navigation
+      mapBackgroundClickListeners.forEach(fn => fn());
+    }
+  });
 
   // Load SVG overlay
   fetch(`${API}/map`)
@@ -153,31 +171,86 @@ function initMap(map_div) {
 }
 
 function buildingToNode(id) {
-  return mapping.svg_to_node[id];
+  return buildingMappings.mapSvgIdToNodeId(id);
 }
 
+// Store route layers for proper cleanup
+let routeLayers = [];
+
+function clearRoute() {
+  console.log("Clearing all route layers...");
+  
+  // Clear all previous route layers properly
+  routeLayers.forEach(layer => {
+    try {
+      if (map.hasLayer(layer)) {
+        map.removeLayer(layer);
+      }
+    } catch (e) {
+      console.warn("Error removing layer:", e);
+    }
+  });
+  routeLayers = [];
+
+  // Also clear the pane as fallback
+  const routePane = map.getPane('routePane');
+  if (routePane) {
+    routePane.querySelectorAll('path, circle, polygon').forEach(el => {
+      try {
+        el.remove();
+      } catch (e) {
+        console.warn("Error removing element:", e);
+      }
+    });
+  }
+}
 
 function drawRoute(result) {
 
-  console.log(result)
+  console.log("drawRoute called with:", result);
 
-  map.getPane('routePane').querySelectorAll('path, circle, polygon').forEach(el => el.remove());
+  // Always clear previous routes first
+  clearRoute();
 
   if (result) {
+    // Create and store route layers for proper cleanup later
+    const snappedMarker = L.circleMarker(result.snappedAt, { 
+      radius: 8, 
+      color: 'orange', 
+      pane: 'routePane' 
+    }).addTo(map).bindTooltip('Snapped');
+    
+    const routeLine = L.polyline(result.routeCoords, { 
+      color: '#254E6A', 
+      weight: 5, 
+      pane: 'routePane' 
+    }).addTo(map);
+    
+    const endMarker = L.circleMarker(result.routeCoords.at(-1), { 
+      radius: 7, 
+      color: '#254E6A', 
+      pane: 'routePane' 
+    }).addTo(map).bindTooltip('end');
 
-    L.circleMarker(result.snappedAt, { radius: 8, color: 'orange', pane: 'routePane' }).addTo(map).bindTooltip('Snapped');
-    L.polyline(result.routeCoords, { color: '#254E6A', weight: 5, pane: 'routePane' }).addTo(map);
-    L.circleMarker(result.routeCoords.at(-1), { radius: 7, color: '#254E6A', pane: 'routePane' }).addTo(map).bindTooltip('end');
+    // Store layers for cleanup
+    routeLayers = [snappedMarker, routeLine, endMarker];
+    
     //map.fitBounds(result.routeCoords);
+    
+    setTimeout(() => {
+      map.invalidateSize(); 
+    }, 50);
+
+    // Disabled auto-centering to allow free panning
+    // if (result.snappedAt) {
+    //   setTimeout(() => {
+    //     focus(result.snappedAt); 
+    //   }, 700);
+    // }
+  } else {
+    // Just clear, no new route to draw
+    console.log("No result provided, route cleared");
   }
-
-  setTimeout(() => {
-    map.invalidateSize(); 
-  }, 50);
-
-  setTimeout(() => {
-    focus(result.snappedAt); 
-  }, 700);
 
 }
 
@@ -253,6 +326,22 @@ function removeBuildingClickListner(listener) {
   if (index !== -1) {
     buildingClickListner.splice(index, 1);
   }
+}
+
+let mapBackgroundClickListeners = [];
+
+// Add a listener for map background clicks (deselect events)
+function addMapBackgroundClickListener(listener) {
+  mapBackgroundClickListeners.push(listener);
+  console.log("Added map background click listener. Total:", mapBackgroundClickListeners.length);
+
+  // Return an "unsubscribe" function
+  return () => {
+    const index = mapBackgroundClickListeners.indexOf(listener);
+    if (index !== -1) {
+      mapBackgroundClickListeners.splice(index, 1);
+    }
+  };
 }
 
 let gpsListners = [];
@@ -344,8 +433,10 @@ export {
   setUserPosition, 
   getUserPosition, 
   buildingToNode, 
-  drawRoute, 
-  addBuildingClickListner, 
+  drawRoute,
+  clearRoute,
+  addBuildingClickListner,
+  addMapBackgroundClickListener,
   addGpsListner, 
   startGPS, 
   stopGps, 

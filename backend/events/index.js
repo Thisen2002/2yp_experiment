@@ -114,8 +114,8 @@ const http = require('http');
 const {Server} = require('socket.io');
 // const cors = require("cors");
 const bodyParser = require("body-parser");
-const routeFromArbitraryPoint = require("./maps/routing")
-const searchDatabase = require('./maps/search');
+const routeFromArbitraryPoint = require("../Maps/backend map/routing")
+const searchDatabase = require('../Maps/backend map/search');
 const fs = require('fs/promises');
 
 

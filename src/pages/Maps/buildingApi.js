@@ -3,8 +3,8 @@
 // Falls back to sample data when backend is not available
 
 import { data } from 'react-router-dom';
-import buildingData, { searchBuildings as searchSampleData, getAllBuildings as getAllSampleBuildings, other_buildings } from './buildingData.js';
-import mapping from './mappings.json';
+import buildingData, { searchBuildings as searchSampleData, getAllBuildings as getAllSampleBuildings } from './buildingData.js';
+import buildingMappings from '../../config/buildingMappings.js';
 
 const BUILDING_SERVICE_URL = 'http://localhost:5000'; // Building service port
 const USE_SAMPLE_DATA = true; // Set to true to use sample data instead of backend
@@ -16,8 +16,8 @@ class BuildingApiService {
     this.preFetchBuildings = [];
     this.preFetch()
     .then((data) => {
-      this.preFetchBuildings = [...data, ...other_buildings]
-    }).catch((data) => this.preFetchBuildings = [...data, ...other_buildings])
+      this.preFetchBuildings = data;
+    }).catch((data) => this.preFetchBuildings = data)
     .finally(() => {
       console.log("at constructor buildingApi")
       console.log(this.preFetchBuildings)
@@ -280,14 +280,12 @@ class BuildingApiService {
 
   // Map database building ID to SVG building ID (b33, b34, etc.)
   mapDatabaseIdToSvgId(databaseId) {
-    
-    return mapping.db_to_svg[databaseId] || `b${databaseId}`;
+    return buildingMappings.mapDatabaseIdToSvgId(databaseId);
   }
 
   // Check if a building has a valid SVG mapping (exists on the map)
   isValidSvgMapping(databaseId) {
-    
-    return mapping.db_to_svg.hasOwnProperty(databaseId);
+    return buildingMappings.DB_TO_SVG.hasOwnProperty(databaseId);
   }
 }
 
