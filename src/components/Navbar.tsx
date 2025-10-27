@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Users, Calendar, Info, Map } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, Home, Users, Calendar, Info, Map, LogIn, LogOut, User } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface NavItem {
@@ -11,7 +11,28 @@ interface NavItem {
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [userName, setUserName] = useState<string>('');
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check authentication status
+    const authStatus = localStorage.getItem('isAuthenticated') === 'true';
+    setIsAuthenticated(authStatus);
+
+    if (authStatus) {
+      const userStr = localStorage.getItem('authUser');
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          setUserName(user.first_name || user.email || 'User');
+        } catch (e) {
+          console.error('Error parsing user data:', e);
+        }
+      }
+    }
+  }, [location]);
 
   const navItems: NavItem[] = [
     { path: '/', label: 'Home', icon: Home },
@@ -24,6 +45,11 @@ const Navbar: React.FC = () => {
 
   const toggleMenu = (): void => {
     setIsOpen(!isOpen);
+  };
+
+  const handleLogout = () => {
+    navigate('/logout');
+    setIsOpen(false);
   };
 
   return (
@@ -57,6 +83,34 @@ const Navbar: React.FC = () => {
             </Link>
           );
         })}
+        
+        {/* Login/User Menu */}
+        {isAuthenticated ? (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/profile')}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 text-blue-700 border-none cursor-pointer transition-all duration-200 hover:bg-blue-100 hover:shadow-md"
+            >
+              <User size={18} />
+              <span className="text-sm font-medium">{userName}</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="text-red-600 no-underline flex items-center gap-2 px-4 py-2 rounded-lg bg-transparent transition-all duration-200 text-sm font-medium hover:text-red-700 hover:bg-red-50 border-none cursor-pointer"
+            >
+              <LogOut size={18} />
+              Logout
+            </button>
+          </div>
+        ) : (
+          <Link
+            to="/auth"
+            className="text-white no-underline flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 transition-all duration-200 text-sm font-semibold hover:from-blue-700 hover:to-blue-600 hover:shadow-lg"
+          >
+            <LogIn size={18} />
+            Log In
+          </Link>
+        )}
       </div>
 
       {/* Mobile Menu Button - Icon color changed to black */}
@@ -90,6 +144,38 @@ const Navbar: React.FC = () => {
               </Link>
             );
           })}
+          
+          {/* Mobile Login/Logout Button */}
+          {isAuthenticated ? (
+            <>
+              <button
+                onClick={() => {
+                  navigate('/profile');
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-lg bg-blue-50 text-blue-700 mb-2 border-none cursor-pointer transition-all duration-200 hover:bg-blue-100 text-left"
+              >
+                <User size={20} />
+                <span className="text-base font-medium">{userName}</span>
+              </button>
+              <button
+                onClick={handleLogout}
+                className="w-full text-red-600 no-underline flex items-center gap-3 p-3 rounded-lg bg-transparent mb-2 text-base font-medium transition-all duration-200 hover:text-red-700 hover:bg-red-50 border-none cursor-pointer text-left"
+              >
+                <LogOut size={20} />
+                Logout
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/auth"
+              onClick={() => setIsOpen(false)}
+              className="text-white no-underline flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 mb-2 text-base font-semibold transition-all duration-200 hover:from-blue-700 hover:to-blue-600"
+            >
+              <LogIn size={20} />
+              Log In
+            </Link>
+          )}
         </div>
       )}
     </nav>
