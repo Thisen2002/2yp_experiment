@@ -1,7 +1,7 @@
 import { u } from "framer-motion/client";
 import L from "leaflet";
 import io, { Socket } from "socket.io-client";
-import mapping from "./mappings.json";
+import buildingMappings from "../../config/buildingMappings";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 🧪 TESTING CONFIGURATION - FAKE GPS LOCATION
@@ -153,7 +153,7 @@ function initMap(map_div) {
 }
 
 function buildingToNode(id) {
-  return mapping.svg_to_node[id];
+  return buildingMappings.mapSvgIdToNodeId(id);
 }
 
 

@@ -16,7 +16,7 @@ import {
   highlightSelectedBuilding
 } from "./map_module";
 import buildingApiService from "./buildingApi";
-import mapping from "./mappings.json";
+import buildingMappings from "../../config/buildingMappings";
 import { other_buildings } from "./buildingData";
 // Removed MobileSearchBar and useSearchBar imports - not needed for this component
 
@@ -199,7 +199,7 @@ export default function MapExtra({kiosk_mode=false}) {
       if (loc) {
         // Delay slightly to ensure map has initialized
         setTimeout(() => {
-          const mapCode = mapping.name_to_svg[loc] || null;
+          const mapCode = buildingMappings.NAME_TO_SVG[loc] || null;
           if (mapCode) {
             highlightSelectedBuilding(mapCode);
             setSelectedBuilding(mapCode);
@@ -219,41 +219,8 @@ export default function MapExtra({kiosk_mode=false}) {
     }
   }, []);
 
-  const nameToMapCode = {
-    "Drawing Office 2": "b13",
-    "Department of Manufacturing and Industrial Engineering": "b15",
-    "Corridor": null,
-    "Lecture Room (middle-right)": null,
-    "Structures Laboratory": "b6",
-    "Lecture Room (bottom-right)": "b9",
-    "Engineering Library": "b10",
-    "Process Laboratory": null,
-    "Faculty Canteen": "b14",
-
-    "Drawing Office 1": "b33",
-    "Professor E.O.E. Pereira Theatre": "b16",
-    "Administrative Building": "b7",
-    "Security Unit": "b12",
-    "Department of Chemical and Process Engineering": "b11",
-    "Department of Engineering Mathematics / Department of Engineering Management / Computer Center": "b32",
-
-    "Department of Electrical and Electronic Engineering": "b34",
-    "Department of Computer Engineering": "b20",
-    "Electrical and Electronic Workshop": "b19",
-    "Surveying Lab": "b31",
-    "Soil Lab": "b31",
-    "Materials Lab": "b28",
-    "Electronic Lab": "b17",
-    "Environmental Lab": "b22",
-
-    "Fluids Lab": "b30",
-    "New Mechanics Lab": "b24",
-    "Applied Mechanics Lab": "b23",
-    "Thermodynamics Lab": "b29",
-    "Generator Room": null,
-    "Engineering Workshop": "b2",
-    "Engineering Carpentry Shop": "b1"
-  };
+  // Use central config instead of hardcoded mapping
+  const nameToMapCode = buildingMappings.NAME_TO_SVG;
 
   useEffect(() => {
     buildingApiService.getAllBuildings()

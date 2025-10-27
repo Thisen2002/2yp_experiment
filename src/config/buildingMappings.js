@@ -1,8 +1,12 @@
-// search.js
-// Enhanced search function with hardcoded building data
+// buildingMappings.js
+// SINGLE SOURCE OF TRUTH for all building data and mappings
+// All other files should import from this file to ensure consistency
 
-// Hardcoded building data - actual engineering faculty buildings
-const buildingsData = [
+/**
+ * Complete building data with all IDs and mappings
+ * This is the master list - DO NOT duplicate this data elsewhere!
+ */
+export const BUILDINGS = [
   {
     building_ID: 1,
     building_name: "Department of Chemical and Process Engineering",
@@ -325,15 +329,91 @@ const buildingsData = [
   }
 ];
 
-// Enhanced search function with improved logic
-function searchDatabase(query, { category, zone, subzone } = {}) {
+/**
+ * Generate mapping objects from the master BUILDINGS array
+ * These are computed at runtime to ensure they're always in sync
+ */
+
+// Database ID to SVG ID mapping
+export const DB_TO_SVG = BUILDINGS.reduce((map, building) => {
+  map[building.building_ID] = building.svg_id;
+  return map;
+}, {});
+
+// Building Name to SVG ID mapping
+export const NAME_TO_SVG = BUILDINGS.reduce((map, building) => {
+  map[building.building_name] = building.svg_id;
+  return map;
+}, {});
+
+// SVG ID to Node ID mapping (for routing)
+export const SVG_TO_NODE = BUILDINGS.reduce((map, building) => {
+  if (building.svg_id && building.node_id !== null) {
+    map[building.svg_id] = building.node_id;
+  }
+  return map;
+}, {});
+
+// SVG ID to Building data mapping
+export const SVG_TO_BUILDING = BUILDINGS.reduce((map, building) => {
+  if (!map[building.svg_id]) {
+    map[building.svg_id] = building;
+  }
+  return map;
+}, {});
+
+/**
+ * Helper functions
+ */
+
+// Get building by database ID
+export function getBuildingById(buildingId) {
+  return BUILDINGS.find(building => building.building_ID === buildingId);
+}
+
+// Get building by SVG ID
+export function getBuildingBySvgId(svgId) {
+  return BUILDINGS.find(building => building.svg_id === svgId);
+}
+
+// Get building by name
+export function getBuildingByName(name) {
+  return BUILDINGS.find(building => building.building_name === name);
+}
+
+// Get all buildings in a zone
+export function getBuildingsByZone(zoneId) {
+  return BUILDINGS.filter(building => building.zone_ID === zoneId);
+}
+
+// Map database ID to SVG ID
+export function mapDatabaseIdToSvgId(databaseId) {
+  return DB_TO_SVG[databaseId] || null;
+}
+
+// Map SVG ID to node ID (for routing)
+export function mapSvgIdToNodeId(svgId) {
+  return SVG_TO_NODE[svgId] || null;
+}
+
+// Map building name to SVG ID
+export function mapNameToSvgId(name) {
+  return NAME_TO_SVG[name] || null;
+}
+
+// Get all buildings
+export function getAllBuildings() {
+  return [...BUILDINGS];
+}
+
+// Search buildings by query
+export function searchBuildings(query, { zone } = {}) {
   if (!query || query.trim() === '') return [];
   
   const searchTerm = query.trim().toLowerCase();
   let results = [];
   
-  // Enhanced search logic with improved matching
-  buildingsData.forEach((building) => {
+  BUILDINGS.forEach((building) => {
     const matchesQuery = 
       building.building_name?.toLowerCase().includes(searchTerm) ||
       building.description?.toLowerCase().includes(searchTerm) ||
@@ -345,7 +425,6 @@ function searchDatabase(query, { category, zone, subzone } = {}) {
         if (building.zone_ID !== parseInt(zone)) return;
       }
       
-      // Add building to results
       results.push({
         id: building.building_ID,
         name: building.building_name,
@@ -357,135 +436,29 @@ function searchDatabase(query, { category, zone, subzone } = {}) {
         zoneId: building.zone_ID,
         coordinates: building.coordinates,
         exhibits: building.exhibits || [],
-        type: 'building'
+        type: 'building',
+        nodeId: building.node_id
       });
-      
-      // Add exhibits from this building that match the search
-      if (building.exhibits) {
-        building.exhibits.forEach((exhibit, index) => {
-          if (exhibit.toLowerCase().includes(searchTerm)) {
-            results.push({
-              id: `${building.building_ID}-exhibit-${index}`,
-              name: exhibit,
-              category: 'Exhibits',
-              description: `Exhibit in ${building.building_name}`,
-              buildingId: building.building_ID,
-              buildingName: building.building_name,
-              svgBuildingId: building.svg_id,
-              zoneId: building.zone_ID,
-              coordinates: building.coordinates,
-              type: 'exhibit'
-            });
-          }
-        });
-      }
     }
   });
   
-  // Remove duplicates and limit results
-  const uniqueResults = results.filter((result, index, self) => 
-    index === self.findIndex(r => r.id === result.id)
-  );
-  
-  return uniqueResults.slice(0, 20); // Limit to 20 results
+  return results.slice(0, 20);
 }
 
-// Helper function to get building by ID
-function getBuildingById(buildingId) {
-  return buildingsData.find(building => building.building_ID === buildingId);
-}
-
-// Helper function to get all buildings
-function getAllBuildings() {
-  return buildingsData.map(building => ({
-    building_ID: building.building_ID,
-    building_name: building.building_name,
-    description: building.description,
-    zone_ID: building.zone_ID,
-    exhibits: building.exhibits || [],
-    coordinates: building.coordinates,
-    svg_id: building.svg_id,
-    node_id: building.node_id
-  }));
-}
-
-// Helper function to map database ID to SVG ID
-function mapDatabaseIdToSvgId(databaseId) {
-  const mapping = {
-    1: "b11",
-    2: "b32",
-    3: "b33",   
-    4: "b16",
-    5: "b7", 
-    6: "b12",  
-    7: "b17", 
-    8: "b34",
-    9: "b20",
-    10: "b19",
-    11: "b31",
-    12: "b31",
-    13: "b28",
-    14: "b22",
-    15: "b30",
-    16: "b24",
-    17: "b23",
-    18: "b29",
-    19: "b2",
-    20: "b1",
-    21: "b13",
-    22: "b13",
-    24: "b9",
-    25: "b6",
-    26: "b10",
-    27: "b10",
-    28: "b15",
-    29: "b14",
-    49: "b18A",
-    50: "b10",
-    51: "b22",
-    52: "b18"
-  };
-  return mapping[databaseId] || `b${databaseId}`;
-}
-
-// Helper function to map SVG ID to node ID
-function mapSvgIdToNodeId(svgId) {
-  const mapping = {
-    "b29": 35,
-    "b10": 29,
-    "b16": 81,
-    "b31": 61,
-    "b15": 10,
-    "b14": 8,
-    "b6": 15,
-    "b13": 20,
-    "b7": 57,
-    "b12": 22,
-    "b33": 87,
-    "b32": 75,
-    "b11": 88,
-    "b18": 68,
-    "b18A": 64,
-    "b20": 92,
-    "b21": 56,
-    "b28": 27,
-    "b22": 25,
-    "b30": 30,
-    "b23": 50,
-    "b24": 48,
-    "b4": 50,
-    "b2": 44,
-    "b1": 40,
-    "b34": 71
-  };
-  return mapping[svgId] || null;
-}
-
-export {
-  searchDatabase,
+// Export default
+export default {
+  BUILDINGS,
+  DB_TO_SVG,
+  NAME_TO_SVG,
+  SVG_TO_NODE,
+  SVG_TO_BUILDING,
   getBuildingById,
-  getAllBuildings,
+  getBuildingBySvgId,
+  getBuildingByName,
+  getBuildingsByZone,
   mapDatabaseIdToSvgId,
-  mapSvgIdToNodeId
+  mapSvgIdToNodeId,
+  mapNameToSvgId,
+  getAllBuildings,
+  searchBuildings
 };
-
