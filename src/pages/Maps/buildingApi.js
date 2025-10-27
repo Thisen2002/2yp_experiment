@@ -6,7 +6,7 @@ import { data } from 'react-router-dom';
 import buildingData, { searchBuildings as searchSampleData, getAllBuildings as getAllSampleBuildings, other_buildings } from './buildingData.js';
 import mapping from './mappings.json';
 
-const BUILDING_SERVICE_URL = 'http://localhost:5000'; // Building service port
+const BUILDING_SERVICE_URL = 'http://localhost:5000/api'; // Building service port
 const USE_SAMPLE_DATA = true; // Set to true to use sample data instead of backend
 
 class BuildingApiService {

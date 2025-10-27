@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Star, Send, Trash2 } from "lucide-react";
 
 export default function FeedbackCard({ eventId }) {
-  const API = useMemo(() => import.meta.env.VITE_API_URL || "", []);
+  // const API = useMemo(() => import.meta.env.VITE_API_URL || "", []);
+  const API = useMemo(() => "http://localhost:3036" || "", []);
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
