@@ -218,7 +218,7 @@ export default function SingleEventDetailPage() {
 
             <div className="event-content full-width">
                 <div className="event-left-section">
-                    <Link to="/" className="back-button">
+                    <Link to="/events" className="back-button">
                         <img src={ArrowLeftIcon} alt="Back" className="back-icon" />
                         Back
                     </Link>
