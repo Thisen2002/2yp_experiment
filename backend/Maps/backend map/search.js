@@ -11,7 +11,7 @@ function searchDatabase(query, { category, zone, subzone } = {}) {
   
   // Mock data matching the database schema format
   // This should be replaced with actual database queries when backend is connected
-  const mockBuildings = [
+  /*const mockBuildings = [
     {
       building_ID: 33,
       zone_ID: 1,
@@ -75,7 +75,7 @@ function searchDatabase(query, { category, zone, subzone } = {}) {
       coordinates: [7.254050, 80.592350],
       svg_id: "b26"
     }
-  ];
+  ];*/
   
   // Enhanced search logic with improved matching
   mockBuildings.forEach((building) => {
