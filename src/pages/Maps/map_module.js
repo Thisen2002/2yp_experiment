@@ -13,18 +13,15 @@ const USE_FAKE_LOCATION = true;
 // 📍 Fake location coordinates (must be within map bounds)
 // Map bounds: lat 7.252000-7.255500, lng 80.590249-80.593809
 // You can adjust these coordinates to test different positions:
-const FAKE_LOCATION = {
-  lat: 7.253750,  // Center of the map
-  lng: 80.592028,
-  // Other test locations you can try:
-  // Engineering Library area: lat: 7.253500, lng: 80.591800
+const FAKE_LOCATION = {lat: 7.253750,  lng: 80.592028};
+  // Other test locations:
+  // Engineering Library: lat: 7.253500, lng: 80.591800
   // Department of Computer Engineering: lat: 7.254200, lng: 80.591500
   // Faculty Canteen: lat: 7.253200, lng: 80.592800
-};
 // ═══════════════════════════════════════════════════════════════════════════
 
 let map, socket;
-const API = 'http://localhost:3036';
+const API = 'http://localhost:3001'; // Maps backend server port
 
 let userPosition;
 let userMarkerLayer;
@@ -275,27 +272,40 @@ function removeGpsListner(listener) {
 
 let watchId;
 function startGPS() {
-  if (navigator.geolocation) {
-    // Watch position continuously
+  if (USE_FAKE_LOCATION) {
+    // 🧪 Use fake location for testing
+    console.log(`🧪 Using fake GPS location: ${FAKE_LOCATION.lat}, ${FAKE_LOCATION.lng}`);
+    setUserPosition([FAKE_LOCATION.lat, FAKE_LOCATION.lng]);
+    
+    // Update every few seconds to simulate movement
+    watchId = setInterval(() => {
+      console.log(`🧪 Fake GPS update: ${FAKE_LOCATION.lat}, ${FAKE_LOCATION.lng}`);
+      setUserPosition([FAKE_LOCATION.lat, FAKE_LOCATION.lng]);
+    }, 2000);
+  } else if (navigator.geolocation) {
+    // 📡 Watch real position continuously
     watchId = navigator.geolocation.watchPosition(
       (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
-        console.log(`Updated location: ${lat}, ${lng}`);
+        console.log(`📡 Updated location: ${lat}, ${lng}`);
         setUserPosition([lat, lng]); // update state -> rerender
       },
       (error) => {
-        console.error(error);
+        console.error('GPS error:', error);
         // fallback
+        console.warn('⚠️ GPS failed, using fallback location');
         setUserPosition([7.252310, 80.592530]);
       },
       {
         enableHighAccuracy: true,  // better accuracy
-        maximumAge: 0,             // don’t use cached
+        maximumAge: 0,             // don't use cached
         timeout: 5000              // fail after 5s
       }
     );
-
+  } else {
+    console.warn('⚠️ Geolocation not supported, using default location');
+    setUserPosition([7.252310, 80.592530]);
   }
 }
 

@@ -54,22 +54,23 @@ io.on("connection", (socket) => {
 });
 
 // --- REST endpoints for map + building info ---
-app.get("/api/buildings", (req, res) => {
-  const withTraffic = {
-    ...buildings,
-    features: buildings.features.map(f => ({
-      ...f,
-      properties: { ...f.properties, traffic: traffic[f.properties.id] }
-    }))
-  };
-  res.json(withTraffic);
-});
+// Commented out - these endpoints reference undefined variables
+// app.get("/api/buildings", (req, res) => {
+//   const withTraffic = {
+//     ...buildings,
+//     features: buildings.features.map(f => ({
+//       ...f,
+//       properties: { ...f.properties, traffic: traffic[f.properties.id] }
+//     }))
+//   };
+//   res.json(withTraffic);
+// });
 
-app.get("/api/building/:id", (req, res) => {
-  const id = Number(req.params.id);
-  if (!detailsById[id]) return res.status(404).json({ error: "Not found" });
-  res.json({ ...detailsById[id], traffic: traffic[id] });
-});
+// app.get("/api/building/:id", (req, res) => {
+//   const id = Number(req.params.id);
+//   if (!detailsById[id]) return res.status(404).json({ error: "Not found" });
+//   res.json({ ...detailsById[id], traffic: traffic[id] });
+// });
 
 
 
