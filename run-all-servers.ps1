@@ -17,7 +17,7 @@ Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd 'C:\Users\ravin\Docu
 # Wait a moment before starting next server
 Start-Sleep -Seconds 2
 
-# Start Map Backend - Maps Backend (Port 3000)
+# Start Map Backend - Maps Backend (Port 3001)
 Write-Host "Starting Maps Backend on port 3000..." -ForegroundColor Cyan
 Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd 'C:\Users\ravin\Documents\GitHub\2yp_experiment\backend\Maps\backend map'; Write-Host '🗺️ Maps Backend Server' -ForegroundColor Yellow; node app.js"
 
@@ -32,6 +32,6 @@ Write-Host "`n✅ All servers are starting in separate windows!" -ForegroundColo
 Write-Host "`nServers:" -ForegroundColor White
 Write-Host "  📅 Event Backend:    http://localhost:3036" -ForegroundColor Gray
 Write-Host "  🗺️ Unified Backend:  http://localhost:5000" -ForegroundColor Gray
-Write-Host "  🗺️ Maps Backend:     http://localhost:3000" -ForegroundColor Gray
+Write-Host "  🗺️ Maps Backend:     http://localhost:3001" -ForegroundColor Gray
 Write-Host "  ⚛️ Frontend:         http://localhost:5173" -ForegroundColor Green
 Write-Host "`nTo stop all servers, close each PowerShell window." -ForegroundColor Yellow

@@ -3,7 +3,7 @@
 // Falls back to sample data when backend is not available
 
 import { data } from 'react-router-dom';
-import buildingData, { searchBuildings as searchSampleData, getAllBuildings as getAllSampleBuildings, other_buildings } from './buildingData.js';
+import buildingData, { searchBuildings as searchSampleData, getAllBuildings as getAllSampleBuildings } from './buildingData.js';
 import buildingMappings from '../../config/buildingMappings.js';
 
 const BUILDING_SERVICE_URL = 'http://localhost:5000'; // Building service port
@@ -16,8 +16,8 @@ class BuildingApiService {
     this.preFetchBuildings = [];
     this.preFetch()
     .then((data) => {
-      this.preFetchBuildings = [...data, ...other_buildings]
-    }).catch((data) => this.preFetchBuildings = [...data, ...other_buildings])
+      this.preFetchBuildings = data;
+    }).catch((data) => this.preFetchBuildings = data)
     .finally(() => {
       console.log("at constructor buildingApi")
       console.log(this.preFetchBuildings)

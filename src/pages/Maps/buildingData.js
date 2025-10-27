@@ -1,37 +1,11 @@
 // buildingData.js
 // Sample building data for testing the interactive exhibition map
-// This replaces the backend service when it's not available
 // NOW IMPORTS FROM CENTRAL CONFIG - DO NOT DUPLICATE DATA HERE!
 
-import buildingApiService from "./buildingApi";
 import buildingMappings from "../../config/buildingMappings";
 
-const other_buildings = [
-  {
-    building_id: 50,
-    zone_ID: 6,
-    building_name: "Engineering Library",
-    description: "Engineering Library"
-  },
-  {
-    building_id: 51,
-    zone_ID: 3,
-    building_name: "Environmental Lab",
-    description: "Environmental Lab"
-  },
-  {
-    building_id: 52,
-    zone_ID: 7,
-    building_name: "Building 18",
-    description: "Building 18"
-  },
-  {
-    building_id: 49,
-    zone_ID: 7,
-    building_name: "Building 18A",
-    description: "Building 18A"
-  }
-]
+// No more duplicate other_buildings - all data comes from shared/buildings.json
+// Buildings 49-52 are already in the shared data
 
 // Import building data from central config
 const buildingData = buildingMappings.BUILDINGS.map(b => ({
@@ -93,7 +67,6 @@ const getAllBuildings = () => {
 export {
   buildingData,
   zoneData,
-  other_buildings,
   getBuildingById,
   getBuildingsByZone,
   searchBuildings,

@@ -2,13 +2,15 @@ import { use, useEffect, useRef, useState } from "react";
 import MapComponent from "./Map";
 import { 
   map,
-  addBuildingClickListner, 
+  addBuildingClickListner,
+  addMapBackgroundClickListener,
   addGpsListner, 
   addMessageListner, 
   sendMessage,
   startGPS,
   buildingToNode,
   drawRoute,
+  clearRoute,
   stopGps, 
   getUserPosition,
   setBuildingAccent,
@@ -17,7 +19,6 @@ import {
 } from "./map_module";
 import buildingApiService from "./buildingApi";
 import buildingMappings from "../../config/buildingMappings";
-import { other_buildings } from "./buildingData";
 // Removed MobileSearchBar and useSearchBar imports - not needed for this component
 
 export default function MapExtra({kiosk_mode=false}) {
@@ -161,10 +162,18 @@ export default function MapExtra({kiosk_mode=false}) {
 
   useEffect(() => {
     // Listen for building clicks from the map module
-    const unsubscribe = addBuildingClickListner((buildingId) => {
+    const unsubscribeBuildingClick = addBuildingClickListner((buildingId) => {
       
       setSelectedBuilding(buildingId);
       setIsSheetOpen(true);
+    });
+
+    // Listen for map background clicks to deselect building and stop navigation
+    const unsubscribeBackgroundClick = addMapBackgroundClickListener(() => {
+      console.log("Map background clicked - closing sheet and stopping navigation");
+      setIsSheetOpen(false);
+      setIsNavigating(false);
+      setSelectedBuilding(null);
     });
 
     // Expose a global function so the bookmarks sidebar can open this sheet
@@ -185,7 +194,8 @@ export default function MapExtra({kiosk_mode=false}) {
     }
 
     return () => {
-      if (typeof unsubscribe === "function") unsubscribe();
+      if (typeof unsubscribeBuildingClick === "function") unsubscribeBuildingClick();
+      if (typeof unsubscribeBackgroundClick === "function") unsubscribeBackgroundClick();
       try { delete window.showBuildingInfo; } catch {}
       try { delete window.map; } catch {}
     };
@@ -227,7 +237,7 @@ export default function MapExtra({kiosk_mode=false}) {
     .then((r) => {
       console.log(`at 169 MapExtra:`);
       console.log(r);
-      fetchedBuilding.current = [...r, ...other_buildings];
+      fetchedBuilding.current = r;
       console.log("at 173 MapExtra");
       console.log(fetchedBuilding.current);
     })
@@ -437,6 +447,10 @@ export default function MapExtra({kiosk_mode=false}) {
     
     if (isNavigating) {
       console.log("Navigation started");
+      
+      // Clear any existing routes before starting new navigation
+      clearRoute();
+      
       let c = buildingToNode(selectedBuilding) 
       sendMessage('position-update', {coords:getUserPosition(), node: c})
       unsubscribeGps = addGpsListner((latLng) => {
@@ -456,7 +470,7 @@ export default function MapExtra({kiosk_mode=false}) {
       
       unsubscribeRouteListner();
       unsubscribeGps();
-      drawRoute(undefined);
+      clearRoute();
       console.log("Navigation stopped");
     }
 
