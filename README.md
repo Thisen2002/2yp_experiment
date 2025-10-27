@@ -12,12 +12,12 @@ to run map backend
     🚀 Unified Backend Server running on port 5000
     📊 API Documentation available at http://localhost:5000
 
+to run Map backend
+    cd "c:\Users\ravin\Documents\GitHub\2yp_experiment\backend\Maps\backend map"; node app.js
+
+    Server running on http://localhost:300
 
 to run frontend
     C:\Users\ravin\Documents\GitHub\2yp_experiment> npm run dev 
 
 
-to run Map backend
-    cd "c:\Users\ravin\Documents\GitHub\2yp_experiment\backend\Maps\backend map"; node app.js
-
-    Server running on http://localhost:300

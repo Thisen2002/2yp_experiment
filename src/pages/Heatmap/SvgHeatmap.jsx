@@ -18,8 +18,8 @@ const MAP_SCALE = 1;
 
 /* === Label tuning === */
 const LABEL_MIN = 9;          // px
-const LABEL_MAX = 24;         // px
-const LABEL_FRACTION = 0.095; // ~10% of bbox width
+const LABEL_MAX = 20;         // px
+const LABEL_FRACTION = 0.05;  // ~5% of bbox width
 
 /* ---------- Sample capacities (edit anytime) ---------- */
 const CAPACITY = {
@@ -511,52 +511,45 @@ export default function SvgHeatmap() {
           {err && <div className="banner error">{err}</div>}
         </div>
 
-        <aside className="sidepanel">
-          <div className="panel card">
-            <div className="panel-title">Summary</div>
-            <div className="stats">
-              <div className="stat"><div className="stat-value">{totals.totalPeople}</div><div className="stat-label">People total</div></div>
-              <div className="stat small"><span className="dot green" /> {totals.byStatus.Low} Low</div>
-              <div className="stat small"><span className="dot yellow" /> {totals.byStatus.Moderate} Moderate</div>
-              <div className="stat small"><span className="dot orange" /> {totals.byStatus.Busy} Busy</div>
-              <div className="stat small"><span className="dot red" /> {totals.byStatus.High} High</div>
+        {/* Summary section moved below the map */}
+        <div className="summary-section">
+          <div className="summary-card">
+            <div className="summary-title">Live Campus Summary</div>
+            <div className="summary-stats">
+              <div className="main-stat">
+                <div className="stat-value">{totals.totalPeople}</div>
+                <div className="stat-label">Total People</div>
+              </div>
+              <div className="status-grid">
+                <div className="status-item">
+                  <span className="dot green" />
+                  <span className="status-count">{totals.byStatus.Low}</span>
+                  <span className="status-label">Low</span>
+                </div>
+                <div className="status-item">
+                  <span className="dot yellow" />
+                  <span className="status-count">{totals.byStatus.Moderate}</span>
+                  <span className="status-label">Moderate</span>
+                </div>
+                <div className="status-item">
+                  <span className="dot orange" />
+                  <span className="status-count">{totals.byStatus.Busy}</span>
+                  <span className="status-label">Busy</span>
+                </div>
+                <div className="status-item">
+                  <span className="dot red" />
+                  <span className="status-count">{totals.byStatus.High}</span>
+                  <span className="status-label">High</span>
+                </div>
+              </div>
+              {lastUpdated && (
+                <div className="last-updated">
+                  Last updated: {lastUpdated.toLocaleTimeString()}
+                </div>
+              )}
             </div>
           </div>
-
-          <div className="panel card">
-            <input className="search" placeholder="Search buildings…" value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-
-          <div className="panel card list">
-            <div className="panel-title">Buildings</div>
-            <div className="items">
-              {filtered.map(b => {
-                const active = b.id === selectedId;
-                return (
-                  <div key={b.id} className={`item ${active ? "active" : ""}`} onClick={() => focusBuilding(b)}>
-                    <div className="item-row">
-                      <div className="idpill">{b.id}</div>
-                      <div className="name">{b.name}</div>
-                      <div className="chip" style={{ background: b.color }}>{b.status}</div>
-                    </div>
-                    {(EXHIBITION_BUILDING_NAMES[b.id] || []).length > 0 && (
-                      <div className="item-exhibitions">
-                        {(EXHIBITION_BUILDING_NAMES[b.id] || []).map((exh, idx) => (
-                          <div key={idx} className="exhibition-name">{exh}</div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="item-row">
-                      <div className="count"><span className="count-num">{b.current ?? "—"}</span> people</div>
-                      {b.occ != null && <div className="muted small">{b.occ}% occupancy</div>}
-                    </div>
-                  </div>
-                );
-              })}
-              {filtered.length === 0 && <div className="empty">No buildings match your search.</div>}
-            </div>
-          </div>
-        </aside>
+        </div>
       </main>
 
       <style>{`
@@ -568,9 +561,9 @@ export default function SvgHeatmap() {
         :root{ --bg:#f6f7fb; --card:#fff; --muted:#6b7280; --border:#e5e7eb; --shadow:0 16px 40px rgba(2,8,23,.10); }
         .page { 
           width: 100%; 
-          min-height: 800px; 
-          height: 80vh;
-          max-height: 1000px;
+          min-height: 80px; 
+          height: 150vh;
+          max-height: 2000px;
           font:14px/1.4 system-ui,-apple-system,sans-serif; 
           background:var(--bg); 
           color:#111;
@@ -584,15 +577,17 @@ export default function SvgHeatmap() {
         .actions{ display:flex; align-items:center; gap:10px; } .muted{ color:var(--muted) } .small{ font-size:12px; }
         .btn{ appearance:none; border:1px solid var(--border); background:#111; color:#fff; border-radius:10px; padding:8px 12px; cursor:pointer; font-weight:600; }
         .stage{ 
-          display:grid; 
-          grid-template-columns: 1fr 320px; 
-          align-items:stretch; 
-          gap:20px; 
+          display: flex;
+          flex-direction: column;
           height: 100%; 
-          padding:20px; 
+          padding: 20px;
+          gap: 20px;
         }
-        .center{ position:relative; }
-        .sidepanel{ display:flex; flex-direction:column; gap:12px; }
+        .center{ 
+          position: relative; 
+          flex: 1;
+          min-height: 0;
+        }
         .svg-host{ width:100%; height:100%; border-radius:12px; overflow:hidden; background:#fff; box-shadow:var(--shadow); border:1px solid var(--border); display:grid; place-items:center; }
         .svg-host svg{ width:100%; height:100%; display:block; transform-origin:center center; transform:scale(${MAP_SCALE}); }
 
@@ -660,6 +655,85 @@ export default function SvgHeatmap() {
         .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
         .dot.green{background:#22c55e;} .dot.yellow{background:#eab308;} .dot.orange{background:#f97316;}
         .dot.red{background:#ef4444;} .dot.darkred{background:#991b1b;}
+
+        /* Summary section styles */
+        .summary-section {
+          flex-shrink: 0;
+          width: 100%;
+        }
+        
+        .summary-card {
+          background: var(--card);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          box-shadow: var(--shadow);
+          padding: 20px;
+        }
+        
+        .summary-title {
+          font-size: 18px;
+          font-weight: 700;
+          margin-bottom: 16px;
+          text-align: center;
+        }
+        
+        .summary-stats {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+        }
+        
+        .main-stat {
+          text-align: center;
+        }
+        
+        .main-stat .stat-value {
+          font-size: 36px;
+          font-weight: 800;
+          color: #111;
+          line-height: 1;
+        }
+        
+        .main-stat .stat-label {
+          font-size: 14px;
+          color: var(--muted);
+          margin-top: 4px;
+        }
+        
+        .status-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 20px;
+          width: 100%;
+          max-width: 500px;
+        }
+        
+        .status-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+          text-align: center;
+        }
+        
+        .status-count {
+          font-size: 20px;
+          font-weight: 700;
+          color: #111;
+        }
+        
+        .status-label {
+          font-size: 12px;
+          color: var(--muted);
+          font-weight: 500;
+        }
+        
+        .last-updated {
+          font-size: 12px;
+          color: var(--muted);
+          text-align: center;
+        }
         .search{ width:90%; padding:10px 10px; border-radius:10px; border:1px solid var(--border); outline:none; background: #fff; color: #0f1072a; }
         .list .items{ display:flex; flex-direction:column; gap:8px; }
         .item{ border:1px solid var(--border); border-radius:10px; padding:10px 10px; display:flex; flex-direction:column; gap:6px; background:#fff; cursor:pointer; transition:transform .06s ease; }
@@ -683,14 +757,17 @@ export default function SvgHeatmap() {
           user-select: none;
         }
 
-        @media (max-width:1100px){ .stage{ grid-template-columns: 1fr 300px; gap:15px; } }
-        @media (max-width:780px){ .stage{ grid-template-columns:1fr; } .sidepanel{margin-top: -8px; order:2; } }
-        .center{ min-height:0; }
-        .sidepanel{ display:flex; flex-direction:column; gap:6px; min-height:0; margin-bottom:15px; }
-        .panel.card.list{flex:1 1 auto; display:flex; flex-direction:column; min-height:0; }
-        .panel.card.list .items{ overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;  }
-        .panel.card.list .panel-title{ position:sticky; top:0; background:#fff; z-index:1; padding-bottom:8px; }
-        .list .items{ padding-top: 12px; scrollbar-gutter: stable both-edges; padding-right: 12px; box-sizing: border-box;}
+        /* Responsive design */
+        @media (max-width: 768px) {
+          .stage { padding: 10px; }
+          .status-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
+          .summary-card { padding: 15px; }
+        }
+        
+        @media (max-width: 480px) {
+          .status-grid { grid-template-columns: 1fr; gap: 12px; }
+          .legend-pill { flex-wrap: wrap; }
+        }
         
         /* === Zoom controls === */
         .zoom-controls{
@@ -974,6 +1051,7 @@ function getLabelLayer(svg){
   return layer;
 }
 
+// Update the ensureIdLabel function to show building names instead of IDs
 function ensureIdLabel(svg, node, id) {
   const ns = "http://www.w3.org/2000/svg";
   const layer = getLabelLayer(svg);
@@ -989,12 +1067,19 @@ function ensureIdLabel(svg, node, id) {
   } else if (label.textContent !== id){
     label.textContent = id;
   }
+  
+  /* Show building name instead of ID
+  const buildingName = BUILDING_NAMES[id] || id;
+  if (label.textContent !== buildingName) {
+    label.textContent = buildingName;
+  } */
+  
   layoutIdLabel(node, label);
 }
 
 function layoutIdLabel(node, labelEl) {
   try {
-    const b = node.getBBox(); // current user space (includes transforms)
+    const b = node.getBBox();
     if (!isFinite(b.x) || !isFinite(b.y) || !isFinite(b.width) || !isFinite(b.height)) return;
 
     const cx = b.x + b.width / 2;
@@ -1002,10 +1087,84 @@ function layoutIdLabel(node, labelEl) {
     labelEl.setAttribute('x', String(cx));
     labelEl.setAttribute('y', String(cy));
 
-    const fs = clamp(LABEL_MIN, Math.round(b.width * LABEL_FRACTION), LABEL_MAX);
-    labelEl.setAttribute('font-size', String(fs));
+    // Adjust font size based on building size and text length
+    const textLength = labelEl.textContent.length;
+    const baseFontSize = Math.round(b.width * LABEL_FRACTION);
+    
+    // Scale down font size for longer text
+    let fontSize = baseFontSize;
+    if (textLength > 20) {
+      fontSize = Math.max(LABEL_MIN, baseFontSize * 0.6);
+    } else if (textLength > 15) {
+      fontSize = Math.max(LABEL_MIN, baseFontSize * 0.75);
+    } else if (textLength > 10) {
+      fontSize = Math.max(LABEL_MIN, baseFontSize * 0.85);
+    }
+    
+    fontSize = clamp(LABEL_MIN, fontSize, LABEL_MAX);
+    labelEl.setAttribute('font-size', String(fontSize));
+    
+    // Add text wrapping for very long names
+    if (textLength > 25 && b.width > 80) {
+      wrapText(labelEl, buildingName, b.width * 0.9, fontSize);
+    }
   } catch { /* ignore degenerate shapes */ }
 }
+
+function wrapText(textElement, text, maxWidth, fontSize) {
+  const words = text.split(' ');
+  if (words.length <= 1) return;
+  
+  const ns = "http://www.w3.org/2000/svg";
+  const x = textElement.getAttribute('x');
+  const y = parseFloat(textElement.getAttribute('y'));
+  
+  // Clear existing text
+  textElement.textContent = '';
+  
+  let line = '';
+  let lineNumber = 0;
+  const lineHeight = fontSize * 1.1;
+  
+  words.forEach((word, index) => {
+    const testLine = line + (line ? ' ' : '') + word;
+    
+    // Create temporary text element to measure width
+    const tempText = document.createElementNS(ns, 'text');
+    tempText.setAttribute('font-size', fontSize);
+    tempText.textContent = testLine;
+    tempText.style.visibility = 'hidden';
+    textElement.parentNode.appendChild(tempText);
+    
+    const textWidth = tempText.getBBox().width;
+    tempText.remove();
+    
+    if (textWidth > maxWidth && line !== '') {
+      // Create tspan for current line
+      const tspan = document.createElementNS(ns, 'tspan');
+      tspan.setAttribute('x', x);
+      tspan.setAttribute('dy', lineNumber === 0 ? `-${lineHeight/2}` : lineHeight);
+      tspan.textContent = line;
+      textElement.appendChild(tspan);
+      
+      line = word;
+      lineNumber++;
+    } else {
+      line = testLine;
+    }
+    
+    // Add the last line
+    if (index === words.length - 1) {
+      const tspan = document.createElementNS(ns, 'tspan');
+      tspan.setAttribute('x', x);
+      tspan.setAttribute('dy', lineNumber === 0 ? 0 : lineHeight);
+      tspan.textContent = line;
+      textElement.appendChild(tspan);
+    }
+  });
+}
+
+
 
 function nodeSetEmphasis(node, on) {
   const targets = isShape(node)
