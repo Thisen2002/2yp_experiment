@@ -1,7 +1,11 @@
 const express = require("express");
 const pool = require("../db");
+const multer = require('multer');
 
 const router = express.Router();
+
+// multer memory storage for images (store in memory, convert to base64 and keep in JSON payload)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB limit
 
 // Supported categories
 const ALLOWED_CATEGORIES = ['lost_found', 'missing_person', 'vehicle', 'weather_alert'];
@@ -72,6 +76,87 @@ router.post('/notifications', async (req, res) => {
         res.status(201).json({ notification: result.rows[0] });
     } catch (err) {
         console.error('❌ Failed to create notification:', err.message || err);
+        res.status(500).json({ error: 'Failed to create notification' });
+    }
+});
+
+// POST /notifications/now/upload - create a notification with an image file (multipart/form-data)
+// Stores image as base64 inside the notification payload (payload.image = { mime, data })
+router.post('/notifications/now/upload', upload.single('image'), async (req, res) => {
+    // multipart fields come in req.body; file is in req.file
+    const {
+        category,
+        title,
+        message,
+        payload,
+        location,
+        severity,
+        expires_at,
+        created_by
+    } = req.body;
+
+    if (!category || !message) {
+        return res.status(400).json({ error: 'category and message are required' });
+    }
+
+    if (!ALLOWED_CATEGORIES.includes(category)) {
+        return res.status(400).json({ error: `Invalid category. Allowed: ${ALLOWED_CATEGORIES.join(', ')}` });
+    }
+
+    const author = created_by || req.cookies?.userId || null;
+
+    let severityNorm = null;
+    if (severity !== undefined && severity !== null && severity !== '') {
+        severityNorm = normalizeSeverity(severity);
+        if (!severityNorm) {
+            return res.status(400).json({ error: `Invalid severity. Allowed: ${ALLOWED_SEVERITIES.join(', ')}` });
+        }
+    }
+
+    // Build payload object: parse provided payload (if any) and attach image if uploaded
+    let payloadObj = null;
+    if (payload) {
+        try {
+            payloadObj = JSON.parse(payload);
+        } catch (e) {
+            // if not JSON, store as text under a value field
+            payloadObj = { value: payload };
+        }
+    } else {
+        payloadObj = {};
+    }
+
+    if (req.file && req.file.buffer) {
+        try {
+            const b64 = req.file.buffer.toString('base64');
+            payloadObj.image = { mime: req.file.mimetype, data: b64, filename: req.file.originalname };
+        } catch (e) {
+            console.error('❌ Failed to process uploaded image:', e.message || e);
+            return res.status(500).json({ error: 'Failed to process uploaded image' });
+        }
+    }
+
+    try {
+        await pool.query(
+            `INSERT INTO notifications (category, title, message, payload, location, severity, created_by, expires_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [
+                category,
+                title || null,
+                message,
+                Object.keys(payloadObj).length ? payloadObj : null,
+                location || null,
+                severityNorm,
+                author,
+                expires_at || null
+            ]
+        );
+
+        // After creation, return the currently active notifications grouped by category
+        const grouped = await fetchActiveGrouped();
+        res.status(201).json({ message: 'Notification with image created', grouped, count: Object.values(grouped).reduce((s, arr) => s + arr.length, 0) });
+    } catch (err) {
+        console.error('❌ Failed to create notification with image (now):', err.message || err);
         res.status(500).json({ error: 'Failed to create notification' });
     }
 });

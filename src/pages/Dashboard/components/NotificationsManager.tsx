@@ -38,6 +38,23 @@ export default function NotificationsManager() {
 
   // Edit mode
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
+  // Helper to return a payload preview with any large binary fields removed/replaced
+  function getPayloadPreview(p: any) {
+    if (p === null || p === undefined) return p;
+    if (typeof p !== 'object') return p;
+    try {
+      const copy = JSON.parse(JSON.stringify(p));
+      // remove any image object entirely so metadata and binary data aren't shown
+      if (copy.image) {
+        delete copy.image;
+      }
+      return copy;
+    } catch (e) {
+      return p;
+    }
+  }
 
   useEffect(() => {
     fetchNotifications();
@@ -109,13 +126,41 @@ export default function NotificationsManager() {
           }
         }
 
-        const res = await fetch('http://localhost:3036/api/notifications/now', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error(`Failed to create: ${res.status}`);
+        // If an image file is selected and category is one that accepts images, send multipart/form-data
+        if (imageFile && (payload.category === 'lost_found' || payload.category === 'missing_person')) {
+          const formData = new FormData();
+          // append simple fields
+          formData.append('category', String(payload.category));
+          if (payload.title) formData.append('title', String(payload.title));
+          formData.append('message', String(payload.message));
+          if (payload.location) formData.append('location', String(payload.location));
+          if (payload.expires_at) formData.append('expires_at', String(payload.expires_at));
+          if (payload.severity) formData.append('severity', String(payload.severity));
+          // if user provided a payload object, append it as JSON string
+          if (payload.payload !== undefined && payload.payload !== null) {
+            try {
+              formData.append('payload', typeof payload.payload === 'string' ? payload.payload : JSON.stringify(payload.payload));
+            } catch (_) {
+              formData.append('payload', String(payload.payload));
+            }
+          }
+          formData.append('image', imageFile, imageFile.name);
+
+          const res = await fetch('http://localhost:3036/api/notifications/now/upload', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+          });
+          if (!res.ok) throw new Error(`Failed to create with image: ${res.status}`);
+        } else {
+          const res = await fetch('http://localhost:3036/api/notifications/now', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) throw new Error(`Failed to create: ${res.status}`);
+        }
       }
 
       // Refresh list
@@ -154,6 +199,9 @@ export default function NotificationsManager() {
       expires_at: n.expires_at || undefined,
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    // If editing a notification that contains an image payload, we don't auto-set imageFile
+    // (uploads during edit are not implemented here). Clear any selected file.
+    setImageFile(null);
   }
 
   return (
@@ -181,6 +229,19 @@ export default function NotificationsManager() {
 
           <input type="datetime-local" className="border rounded p-2" onChange={(e) => handleChange('expires_at', e.target.value ? new Date(e.target.value).toISOString() : null)} />
         </div>
+
+        {/* Image upload for lost_found and missing_person */}
+        {(form.category === 'lost_found' || form.category === 'missing_person' || form.category === 'vehicle') && (
+          <div>
+            <label className="text-sm font-medium mb-1 block">Image (optional)</label>
+            <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
+            {imageFile && (
+              <div className="mt-2">
+                <strong>Selected:</strong> {imageFile.name} ({Math.round(imageFile.size / 1024)} KB)
+              </div>
+            )}
+          </div>
+        )}
 
         <textarea required className="w-full border rounded p-2" placeholder="Message" value={form.message || ''} onChange={(e) => handleChange('message', e.target.value)} />
 
@@ -232,7 +293,16 @@ export default function NotificationsManager() {
                 <div className="font-medium">{n.title || <em className="text-gray-600">(no title)</em>}</div>
                 <div className="mt-1">{n.message}</div>
                 {n.payload ? (
-                  <pre className="mt-2 bg-gray-50 border rounded p-2 text-xs overflow-auto max-h-40">{typeof n.payload === 'object' ? JSON.stringify(n.payload, null, 2) : String(n.payload)}</pre>
+                  <div className="mt-2">
+                    {/* If payload contains an image stored as base64, render it */}
+                    {n.payload.image && n.payload.image.mime && n.payload.image.data ? (
+                      <div className="mb-2">
+                        <img src={`data:${n.payload.image.mime};base64,${n.payload.image.data}`} alt={n.payload.image.filename || 'image'} style={{ maxWidth: 240, maxHeight: 240 }} />
+                      </div>
+                    ) : null}
+
+                    <pre className="bg-gray-50 border rounded p-2 text-xs overflow-auto max-h-40">{typeof n.payload === 'object' ? JSON.stringify(getPayloadPreview(n.payload), null, 2) : String(n.payload)}</pre>
+                  </div>
                 ) : null}
                 <div className="text-xs text-gray-500 mt-2">Posted: {n.created_at ? new Date(n.created_at).toLocaleString() : '—'} {n.expires_at ? `· Expires: ${new Date(n.expires_at).toLocaleString()}` : ''}</div>
               </div>
