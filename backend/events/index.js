@@ -13,6 +13,7 @@ const ratingsRoutes = require("./routes/ratings.routes");
 const eventListRoutes = require("./routes/eventlist.routes");
 const interestsRouter = require("./routes/interests.routes");
 const userinterestsRouter = require("./routes/userinterests.routes");
+const notificationsRoutes = require("./routes/notifications.routes");
 
 // set the main port
 const app = express();
@@ -85,6 +86,8 @@ app.use("/api/events", eventListRoutes); // /api/events list
 app.use("/api", ratingsRoutes);
 app.use("/api", eventRoutes); // includes /events/:id and related
 app.use("/api/interests", userinterestsRouter);
+// Notifications API (create/list/fetch)
+app.use("/api", notificationsRoutes);
 
 
 
