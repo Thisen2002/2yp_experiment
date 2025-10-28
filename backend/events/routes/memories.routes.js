@@ -39,19 +39,45 @@ router.post('/memories', upload.single('image'), async (req, res) => {
 });
 
 // GET /memories - list memories (optional ?user_id= or ?limit=&offset=)
+// Returns aggregated vote counts (upvotes, downvotes, score) joined into each memory row
 router.get('/memories', async (req, res) => {
-  const { user_id, limit = 100, offset = 0 } = req.query;
+  const { user_id, limit = 100, offset = 0, approved } = req.query;
   const params = [];
   const conds = [];
   if (user_id) {
     params.push(user_id);
-    conds.push(`user_id = $${params.length}`);
+    conds.push(`m.user_id = $${params.length}`);
   }
+  // approval filtering: by default only approved memories are returned; pass approved=all to see all
+  if (typeof approved === 'undefined') {
+    conds.push(`m.approved = true`);
+  } else if (approved !== 'all') {
+    const appVal = (approved === 'true' || approved === '1');
+    params.push(appVal);
+    conds.push(`m.approved = $${params.length}`);
+  }
+
   params.push(Number(limit));
   params.push(Number(offset));
 
   const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-  const q = `SELECT * FROM memories ${where} ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
+
+  // Aggregate votes per memory: upvotes, downvotes, score
+  const q = `
+    SELECT m.*, COALESCE(v.upvotes,0) AS upvotes, COALESCE(v.downvotes,0) AS downvotes, COALESCE(v.score,0) AS score
+    FROM memories m
+    LEFT JOIN (
+      SELECT memory_id,
+        SUM(CASE WHEN value > 0 THEN 1 ELSE 0 END) AS upvotes,
+        SUM(CASE WHEN value < 0 THEN 1 ELSE 0 END) AS downvotes,
+        SUM(value) AS score
+      FROM memory_votes
+      GROUP BY memory_id
+    ) v ON v.memory_id = m.id
+    ${where}
+    ORDER BY m.created_at DESC
+    LIMIT $${params.length - 1} OFFSET $${params.length}
+  `;
 
   try {
     const r = await pool.query(q, params);
@@ -59,6 +85,41 @@ router.get('/memories', async (req, res) => {
   } catch (err) {
     console.error('Failed to list memories', err.message || err);
     res.status(500).json({ error: 'Failed to fetch memories' });
+  }
+});
+
+// POST /memories/:id/approve - approve a memory (admin)
+router.post('/memories/:id/approve', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid id' });
+  const approver = req.body?.approved_by || req.cookies?.userId || null;
+  try {
+    const r = await pool.query(
+      'UPDATE memories SET approved = true, approved_by = $2, approved_at = now() WHERE id = $1 RETURNING *',
+      [id, approver]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Memory not found' });
+    res.json({ memory: r.rows[0] });
+  } catch (err) {
+    console.error('Failed to approve memory', err.message || err);
+    res.status(500).json({ error: 'Failed to approve memory' });
+  }
+});
+
+// POST /memories/:id/reject - unapprove/reject a memory (admin)
+router.post('/memories/:id/reject', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid id' });
+  try {
+    const r = await pool.query(
+      'UPDATE memories SET approved = false, approved_by = NULL, approved_at = NULL WHERE id = $1 RETURNING *',
+      [id]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Memory not found' });
+    res.json({ memory: r.rows[0] });
+  } catch (err) {
+    console.error('Failed to reject memory', err.message || err);
+    res.status(500).json({ error: 'Failed to reject memory' });
   }
 });
 
@@ -156,4 +217,39 @@ router.post('/memories/:id/generate', async (req, res) => {
 });
 
 module.exports = router;
+
+// POST /memories/:id/vote - cast or update a vote on a memory (expects JSON { value: 1 | -1 })
+router.post('/memories/:id/vote', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid id' });
+  const value = Number(req.body?.value);
+  if (![1, -1].includes(value)) return res.status(400).json({ error: 'Invalid vote value' });
+
+  const userId = req.body.user_id || req.cookies?.userId || null;
+  try {
+    // ensure memory exists
+    const mem = await pool.query('SELECT id FROM memories WHERE id = $1', [id]);
+    if (mem.rows.length === 0) return res.status(404).json({ error: 'Memory not found' });
+
+    // Upsert vote by (memory_id, user_id). If userId is null we allow anonymous votes but store user_id as NULL
+    const q = `
+      INSERT INTO memory_votes (memory_id, user_id, value)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (memory_id, user_id) DO UPDATE SET value = EXCLUDED.value, created_at = now()
+      RETURNING *
+    `;
+    const r = await pool.query(q, [id, userId, value]);
+
+    // Return updated counts for the memory
+    const agg = await pool.query(
+      `SELECT SUM(CASE WHEN value>0 THEN 1 ELSE 0 END) AS upvotes, SUM(CASE WHEN value<0 THEN 1 ELSE 0 END) AS downvotes, SUM(value) AS score FROM memory_votes WHERE memory_id = $1`,
+      [id]
+    );
+    const counts = agg.rows[0] || { upvotes: 0, downvotes: 0, score: 0 };
+    res.json({ vote: r.rows[0], counts });
+  } catch (err) {
+    console.error('Failed to record vote', err.message || err);
+    res.status(500).json({ error: 'Failed to record vote' });
+  }
+});
 

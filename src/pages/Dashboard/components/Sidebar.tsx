@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { BarChart3, Map as HeatMap, MessageSquare, Download, Building2, X, Menu, Calendar, Bell } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-type Section = 'overview' | 'heatmaps' | 'feedback' | 'export' | 'buildings' | 'organizers' | 'events' | 'notifications';  // Added 'organizers', 'events', 'notifications'
+type Section = 'overview' | 'heatmaps' | 'feedback' | 'export' | 'buildings' | 'organizers' | 'events' | 'notifications' | 'memories';  // Added 'organizers', 'events', 'notifications'
 
 interface SidebarProps {
   isOpen: boolean;
@@ -19,6 +19,7 @@ const navigationItems: Array<{ id: Section; label: string; icon: LucideIcon; pat
   { id: 'events', label: 'Events', icon: Calendar, path: '/dashboard/events' },
   { id: 'notifications', label: 'Notifications', icon: Bell, path: '/dashboard/notifications' },
   { id: 'organizers', label: 'Organizers', icon: Building2, path: '/dashboard/organizers' }, // Added 'Organizers' entry
+  { id: 'memories', label: 'Memories', icon: MessageSquare, path: '/dashboard/memories' }, // Added 'Memories' entry
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
