@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import L from 'leaflet';
 
+
 /**
  * NodeVisualizer - Test Component to Display All Nodes
  * Shows all nodes from path.json as colored dots on the map
@@ -13,22 +14,43 @@ const NodeVisualizer = ({ map }) => {
   const [nodesData, setNodesData] = useState(null);
   const [markers, setMarkers] = useState([]);
   const [specialMarker, setSpecialMarker] = useState(null);
-  const [specialCoords, setSpecialCoords] = useState([7.253750, 80.592028]);
+  const [specialCoords, setSpecialCoords] = useState([7.253750, 80.594450]);
 
   useEffect(() => {
-    // Fetch path.json data from backend
-    fetch('http://localhost:3001/api/path')
-      .then(res => res.json())
-      .then(data => {
+    // Fetch navigation graph from API with fallback to hardcoded data
+    const loadNavigationData = async () => {
+      try {
+        console.log('🔄 NodeVisualizer: Fetching navigation graph from API...');
+        const response = await fetch('http://localhost:3001/api/navigation/graph');
+        
+        if (!response.ok) {
+          throw new Error(`API responded with status ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Validate data structure
+        if (!data.nodes || !data.edges || !Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
+          throw new Error('Invalid data structure from API');
+        }
+        
+        console.log(`✅ NodeVisualizer: Loaded from API - ${data.nodes.length} nodes, ${data.edges.length} edges`);
         setNodesData(data);
-      })
-      .catch(err => {
-        console.error('Failed to load path.json, trying direct file:', err);
-        // Fallback: try to load from public folder if API fails
-        import('../../../backend/Maps/backend map/path.json')
-          .then(data => setNodesData(data))
-          .catch(err2 => console.error('Failed to load path.json:', err2));
-      });
+      } catch (err) {
+        console.warn('⚠️ NodeVisualizer: API failed, loading from path.json:', err.message);
+        
+        // Fallback: Load from local path.json file
+        try {
+          const pathData = await import('../../../backend/Maps/backend map/path.json');
+          console.log(`📁 NodeVisualizer: Loaded from path.json - ${pathData.nodes.length} nodes, ${pathData.edges.length} edges`);
+          setNodesData(pathData);
+        } catch (fallbackErr) {
+          console.error('❌ NodeVisualizer: Failed to load fallback data:', fallbackErr);
+        }
+      }
+    };
+
+    loadNavigationData();
   }, []);
 
   useEffect(() => {
@@ -104,8 +126,8 @@ const NodeVisualizer = ({ map }) => {
       special.bindTooltip(
         `<strong>📍 Special Node</strong><br/>` +
         `Lat: <strong>${latlng.lat.toFixed(6)}</strong><br/>` +
-        `Lng: <strong>${latlng.lng.toFixed(6)}</strong><br/>` +
-        `<em>Drag or use arrow keys</em>`,
+        `Lng: <strong>${latlng.lng.toFixed(6)}</strong><br/>`,
+        //+ `<em>Drag or use arrow keys</em>`,
         { permanent: true, direction: 'top', offset: [0, -12] }
       ).openTooltip();
     };
@@ -180,11 +202,11 @@ const NodeVisualizer = ({ map }) => {
           </div>
           <div style="display: flex; align-items: center; margin-bottom: 5px;">
             <div style="width: 12px; height: 12px; border-radius: 50%; background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%); border: 2px solid white; margin-right: 8px;"></div>
-            <span style="font-size: 12px;">Draggable Marker (↑↓←→)</span>
+            <span style="font-size: 12px;">Draggable Marker</span>
           </div>
           <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 11px; color: #666;">
             Total Nodes: ${nodesData.nodes.length}<br/>
-            <span style="color: #9333ea; font-weight: 600;">Arrow keys: ±0.000001</span>
+            <span style="color: #9333ea; font-weight: 600;">Precision: ±0.000001</span>
           </div>
         </div>
       `;
