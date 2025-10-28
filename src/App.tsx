@@ -9,7 +9,8 @@ import AppDashboard from './pages/Dashboard/AppDash';
 import Appevents from "./pages/Events/Appevents"
 import CrowdManagement from './pages/Heatmap/CrowdManagement';
 import Dashboard from './pages/Maps/Dashboard';
-
+import NotificationsPage from './pages/NotificationsPage';
+import MemoriesPage from './pages/MemoriesPage';
 
 
 function AppContent() {
@@ -30,6 +31,8 @@ function AppContent() {
           <Route path="*" element={<NotFound />} />
           <Route path="/events/*" element={<Appevents />} />
           <Route path="/map" element={<Dashboard kiosk_mode={false}/>} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/memories" element={<MemoriesPage />} />
         </Routes>
       </main>
       {!isDashboard && !isKiosk && <Footer />}
