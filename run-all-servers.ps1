@@ -18,7 +18,7 @@ Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd 'C:\Users\ravin\Docu
 Start-Sleep -Seconds 2
 
 # Start Map Backend - Maps Backend (Port 3001)
-Write-Host "Starting Maps Backend on port 3000..." -ForegroundColor Cyan
+Write-Host "Starting Maps Backend on port 3001..." -ForegroundColor Cyan
 Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd 'C:\Users\ravin\Documents\GitHub\2yp_experiment\backend\Maps\backend map'; Write-Host '🗺️ Maps Backend Server' -ForegroundColor Yellow; node app.js"
 
 # Wait a moment before starting frontend

@@ -6,11 +6,14 @@ import L from 'leaflet';
  * Shows all nodes from path.json as colored dots on the map
  * - Green: Connected nodes (have edges)
  * - Red: Isolated nodes (no edges)
+ * - Purple: Draggable special node to find coordinates
  */
 
 const NodeVisualizer = ({ map }) => {
   const [nodesData, setNodesData] = useState(null);
   const [markers, setMarkers] = useState([]);
+  const [specialMarker, setSpecialMarker] = useState(null);
+  const [specialCoords, setSpecialCoords] = useState([7.253750, 80.592028]);
 
   useEffect(() => {
     // Fetch path.json data from backend
@@ -68,6 +71,98 @@ const NodeVisualizer = ({ map }) => {
 
     setMarkers(newMarkers);
 
+    // Create draggable special marker
+    const special = L.marker(specialCoords, {
+      draggable: true,
+      icon: L.divIcon({
+        html: `
+          <div style="
+            width: 24px; 
+            height: 24px; 
+            background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(147, 51, 234, 0.6);
+            cursor: move;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
+              <path d="M12 2L12 22M2 12L22 12" stroke="white" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+        `,
+        className: 'special-draggable-marker',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      })
+    }).addTo(map);
+
+    // Permanent tooltip showing coordinates
+    const updateTooltip = (latlng) => {
+      special.bindTooltip(
+        `<strong>📍 Special Node</strong><br/>` +
+        `Lat: <strong>${latlng.lat.toFixed(6)}</strong><br/>` +
+        `Lng: <strong>${latlng.lng.toFixed(6)}</strong><br/>` +
+        `<em>Drag or use arrow keys</em>`,
+        { permanent: true, direction: 'top', offset: [0, -12] }
+      ).openTooltip();
+    };
+
+    updateTooltip(special.getLatLng());
+
+    // Update coordinates on drag
+    special.on('drag', (e) => {
+      const latlng = e.target.getLatLng();
+      setSpecialCoords([latlng.lat, latlng.lng]);
+      updateTooltip(latlng);
+    });
+
+    special.on('dragend', (e) => {
+      const latlng = e.target.getLatLng();
+      console.log(`📍 Special node moved to: [${latlng.lat}, ${latlng.lng}]`);
+    });
+
+    setSpecialMarker(special);
+
+    // Keyboard controls for precise movement
+    const PRECISION = 0.000001;
+    const handleKeyPress = (e) => {
+      // Only move if arrow keys are pressed
+      if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+      
+      e.preventDefault(); // Prevent page scrolling
+      
+      const currentLatLng = special.getLatLng();
+      let newLat = currentLatLng.lat;
+      let newLng = currentLatLng.lng;
+
+      switch(e.key) {
+        case 'ArrowUp':
+          newLat += PRECISION;
+          break;
+        case 'ArrowDown':
+          newLat -= PRECISION;
+          break;
+        case 'ArrowRight':
+          newLng += PRECISION;
+          break;
+        case 'ArrowLeft':
+          newLng -= PRECISION;
+          break;
+      }
+
+      const newLatLng = L.latLng(newLat, newLng);
+      special.setLatLng(newLatLng);
+      setSpecialCoords([newLat, newLng]);
+      updateTooltip(newLatLng);
+      console.log(`⌨️ Moved to: [${newLat}, ${newLng}]`);
+    };
+
+    // Add keyboard listener
+    document.addEventListener('keydown', handleKeyPress);
+
     // Add legend to map
     const legend = L.control({ position: 'bottomright' });
     legend.onAdd = function () {
@@ -79,12 +174,17 @@ const NodeVisualizer = ({ map }) => {
             <div style="width: 12px; height: 12px; border-radius: 50%; background: #00ff00; margin-right: 8px;"></div>
             <span style="font-size: 12px;">Connected (${connectedNodes.size} nodes)</span>
           </div>
-          <div style="display: flex; align-items: center;">
+          <div style="display: flex; align-items: center; margin-bottom: 5px;">
             <div style="width: 12px; height: 12px; border-radius: 50%; background: #ff0000; margin-right: 8px;"></div>
             <span style="font-size: 12px;">Isolated (${nodesData.nodes.length - connectedNodes.size} nodes)</span>
           </div>
+          <div style="display: flex; align-items: center; margin-bottom: 5px;">
+            <div style="width: 12px; height: 12px; border-radius: 50%; background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%); border: 2px solid white; margin-right: 8px;"></div>
+            <span style="font-size: 12px;">Draggable Marker (↑↓←→)</span>
+          </div>
           <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 11px; color: #666;">
-            Total Nodes: ${nodesData.nodes.length}
+            Total Nodes: ${nodesData.nodes.length}<br/>
+            <span style="color: #9333ea; font-weight: 600;">Arrow keys: ±0.000001</span>
           </div>
         </div>
       `;
@@ -95,6 +195,8 @@ const NodeVisualizer = ({ map }) => {
     // Cleanup function
     return () => {
       newMarkers.forEach(marker => marker.remove());
+      if (special) special.remove();
+      document.removeEventListener('keydown', handleKeyPress);
       legend.remove();
     };
   }, [map, nodesData]);
