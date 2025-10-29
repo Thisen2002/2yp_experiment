@@ -13,6 +13,13 @@ export interface SignUpData {
   state?: string;
   country?: string;
   postalCode?: string;
+  interests?: string[]; // Array of interest IDs
+}
+
+export interface Interest {
+  id: string;
+  name: string;
+  created_at: string;
 }
 
 export interface LoginData {
@@ -34,6 +41,53 @@ const hashPassword = async (password: string): Promise<string> => {
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+// Fetch all available interests
+export const getInterests = async (): Promise<Interest[]> => {
+  try {
+    const { data: interests, error } = await supabase
+      .from('interests')
+      .select('*')
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching interests:', error);
+      return [];
+    }
+
+    return interests || [];
+  } catch (error) {
+    console.error('Error fetching interests:', error);
+    return [];
+  }
+};
+
+// Fetch user's interests by user ID
+export const getUserInterests = async (userId: string): Promise<Interest[]> => {
+  try {
+    const { data: userInterests, error } = await supabase
+      .from('user_interests')
+      .select(`
+        interests (
+          id,
+          name,
+          created_at
+        )
+      `)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error fetching user interests:', error);
+      return [];
+    }
+
+    // Extract the interests from the nested structure
+    return userInterests?.map(ui => ui.interests).filter(Boolean) || [];
+  } catch (error) {
+    console.error('Error fetching user interests:', error);
+    return [];
+  }
 };
 
 export const signUp = async (data: SignUpData): Promise<UserResponse> => {
@@ -85,6 +139,23 @@ export const signUp = async (data: SignUpData): Promise<UserResponse> => {
         message: 'Failed to create account',
         error: insertError.message
       };
+    }
+
+    // If user has selected interests, save them to user_interests table
+    if (data.interests && data.interests.length > 0) {
+      const userInterests = data.interests.map(interestId => ({
+        user_id: newUser.id,
+        interest_id: interestId
+      }));
+
+      const { error: interestsError } = await supabase
+        .from('user_interests')
+        .insert(userInterests);
+
+      if (interestsError) {
+        console.error('Error saving user interests:', interestsError);
+        // Don't fail the signup if interests can't be saved, just log it
+      }
     }
 
     return {

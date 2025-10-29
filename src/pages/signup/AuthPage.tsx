@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signUp, login } from './backend/authService';
-import type { SignUpData, LoginData } from './backend/authService';
-import { Eye, EyeOff, User, Mail, Lock, Phone, Calendar, MapPin } from 'lucide-react';
+import { signUp, login, getInterests } from './backend/authService';
+import type { SignUpData, LoginData, Interest } from './backend/authService';
+import { Eye, EyeOff, User, Mail, Lock, Phone, Calendar, MapPin, Heart } from 'lucide-react';
 import SuccessModal from './SuccessModal';
 import './AuthPage.css';
 
@@ -14,6 +14,8 @@ const AuthPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [signupUserName, setSignupUserName] = useState('');
+  const [interests, setInterests] = useState<Interest[]>([]);
+  const [loadingInterests, setLoadingInterests] = useState(false);
   const navigate = useNavigate();
 
   // Login form state
@@ -35,8 +37,30 @@ const AuthPage: React.FC = () => {
     city: '',
     state: '',
     country: '',
-    postalCode: ''
+    postalCode: '',
+    interests: []
   });
+
+  // Load interests when component mounts
+  useEffect(() => {
+    const loadInterests = async () => {
+      setLoadingInterests(true);
+      const fetchedInterests = await getInterests();
+      setInterests(fetchedInterests);
+      setLoadingInterests(false);
+    };
+
+    loadInterests();
+  }, []);
+
+  const handleInterestToggle = (interestId: string) => {
+    setSignupData(prev => ({
+      ...prev,
+      interests: prev.interests?.includes(interestId)
+        ? prev.interests.filter(id => id !== interestId)
+        : [...(prev.interests || []), interestId]
+    }));
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +120,8 @@ const AuthPage: React.FC = () => {
         city: '',
         state: '',
         country: '',
-        postalCode: ''
+        postalCode: '',
+        interests: []
       });
     } else {
       setErrorMessage(result.message);
@@ -371,6 +396,35 @@ const AuthPage: React.FC = () => {
                   onChange={(e) => setSignupData({ ...signupData, postalCode: e.target.value })}
                 />
               </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                <Heart size={18} />
+                Interests (Optional)
+              </label>
+              {loadingInterests ? (
+                <div className="interests-loading">Loading interests...</div>
+              ) : (
+                <div className="interests-grid">
+                  {interests.map((interest) => (
+                    <label key={interest.id} className="interest-item">
+                      <input
+                        type="checkbox"
+                        checked={signupData.interests?.includes(interest.id) || false}
+                        onChange={() => handleInterestToggle(interest.id)}
+                        className="interest-checkbox"
+                      />
+                      <span className="interest-name">{interest.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {signupData.interests && signupData.interests.length > 0 && (
+                <div className="selected-interests-count">
+                  {signupData.interests.length} interest{signupData.interests.length !== 1 ? 's' : ''} selected
+                </div>
+              )}
             </div>
 
             <button

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, Calendar, MapPin, LogOut, ArrowLeft } from 'lucide-react';
+import { User, Mail, Phone, Calendar, MapPin, LogOut, ArrowLeft, Heart } from 'lucide-react';
+import { getUserInterests } from './backend/authService';
+import type { Interest } from './backend/authService';
 import './UserProfile.css';
 
 interface UserData {
@@ -21,6 +23,8 @@ interface UserData {
 
 const UserProfile: React.FC = () => {
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [userInterests, setUserInterests] = useState<Interest[]>([]);
+  const [loadingInterests, setLoadingInterests] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,6 +41,11 @@ const UserProfile: React.FC = () => {
       try {
         const user = JSON.parse(userStr);
         setUserData(user);
+        
+        // Load user interests
+        if (user.id) {
+          loadUserInterests(user.id);
+        }
       } catch (e) {
         console.error('Error parsing user data:', e);
         navigate('/auth');
@@ -45,6 +54,18 @@ const UserProfile: React.FC = () => {
       navigate('/auth');
     }
   }, [navigate]);
+
+  const loadUserInterests = async (userId: string) => {
+    setLoadingInterests(true);
+    try {
+      const interests = await getUserInterests(userId);
+      setUserInterests(interests);
+    } catch (error) {
+      console.error('Error loading user interests:', error);
+    } finally {
+      setLoadingInterests(false);
+    }
+  };
 
   const handleLogout = () => {
     navigate('/logout');
@@ -196,6 +217,29 @@ const UserProfile: React.FC = () => {
             </div>
           </div>
         )}
+
+        <div className="profile-section">
+          <h2 className="section-title">
+            <Heart size={20} />
+            Interests
+          </h2>
+          
+          {loadingInterests ? (
+            <div className="interests-loading">Loading interests...</div>
+          ) : userInterests.length > 0 ? (
+            <div className="interests-container">
+              {userInterests.map((interest) => (
+                <span key={interest.id} className="interest-tag">
+                  {interest.name}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="no-interests">
+              <p>No interests selected</p>
+            </div>
+          )}
+        </div>
 
         <div className="profile-actions">
           <button className="logout-button" onClick={handleLogout}>
