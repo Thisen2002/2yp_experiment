@@ -14,6 +14,9 @@ import EventsPage from "./EventsPage";
 // Import Organizer management components
 import OrgMngWidget from "./OrgMngWidget";
 import OrgMngPage from "./OrgMngPage";
+import NotificationsManager from "./components/NotificationsManager";
+import MemoriesAdmin from "./components/MemoriesAdmin";
+
 
 interface OrganizerDashBoardProps {
   onLogout: () => void;
@@ -66,6 +69,8 @@ function OrganizerDashBoard({ onLogout }: OrganizerDashBoardProps) {
             <Route path="export" element={<ExportPage />} />
             <Route path="buildings" element={<BuildingsPage />} />
             <Route path="events" element={<EventsPage />} />
+            <Route path="notifications" element={<NotificationsManager />} />
+            <Route path="memories" element={<MemoriesAdmin />} />
 
             {/* Organizers routes */}
             <Route path="organizers" element={<OrgMngWidget />} /> {/* List all organizers */}

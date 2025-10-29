@@ -13,11 +13,12 @@ interface Feedback {
   comment: string;
   visitor: string;
   created_at: string;
+  eventName?: string;
 }
 
 interface Event {
   event_id: number;
-  event_name: string;
+  event_title: string;
 }
 
 const FeedbackWidget: React.FC = () => {
@@ -35,10 +36,13 @@ const FeedbackWidget: React.FC = () => {
   useEffect(() => {
     async function fetchEvents() {
       try {
-        const response = await axios.get("http://localhost:5000/events");
+        console.log("Fetching events from: http://localhost:3036/api/events");
+        const response = await axios.get("http://localhost:3036/api/events");
+        console.log("Events response:", response.data);
         setEvents(response.data); // Assuming the response contains an array of events
         if (response.data.length > 0) {
           setEventId(response.data[0].event_id); // Set default event ID to the first event
+          console.log("Default event ID set to:", response.data[0].event_id);
         }
       } catch (error) {
         console.error("Error fetching events:", error);
@@ -53,7 +57,7 @@ const FeedbackWidget: React.FC = () => {
     if (eventId === 0) return; // Prevent fetch if eventId is not selected
     setLoading(true); // Start loading
     try {
-      const response = await axios.get(`http://localhost:3000/api/events/${eventId}/ratings/all`);
+      const response = await axios.get(`http://localhost:3036/api/events/${eventId}/ratings/all`);
       setFeedback(response.data.items); // Assuming 'items' is the array of feedback data
     } catch (error) {
       console.error("Error fetching feedback:", error);
@@ -66,7 +70,7 @@ const FeedbackWidget: React.FC = () => {
   const fetchEventSummary = async () => {
     if (eventId === 0) return; // Prevent fetch if eventId is not selected
     try {
-      const response = await axios.get(`http://localhost:3000/api/events/${eventId}/ratings/summary`);
+      const response = await axios.get(`http://localhost:3036/api/events/${eventId}/ratings/summary`);
       setAverageRating(response.data.average); // Set the average rating
       setTotalReviews(response.data.count); // Set the total reviews count
       setHistogram(response.data.histogram); // Set the histogram data
@@ -84,7 +88,7 @@ const FeedbackWidget: React.FC = () => {
 
   // Helper function for sentiment color classes
   const getSentimentColor = (rating: number) => {
-    const colors = {
+    const colors: { [key: number]: string } = {
       1: "border-l-red-500 bg-red-50",
       2: "border-l-orange-500 bg-orange-50",
       3: "border-l-yellow-500 bg-yellow-50",
@@ -115,13 +119,17 @@ const FeedbackWidget: React.FC = () => {
         <select
           value={eventId}
           onChange={(e) => setEventId(Number(e.target.value))} // Update eventId when selected
-          className="border rounded-lg px-3 py-2"
+          className="border rounded-lg px-3 py-2 min-w-158"
         >
-          {events.map((event) => (
-            <option key={event.event_id} value={event.event_id}>
-              {event.event_name}
-            </option>
-          ))}
+          {events.length === 0 ? (
+            <option value={0}>No events available</option>
+          ) : (
+            events.map((event) => (
+              <option key={event.event_id} value={event.event_id}>
+                {event.event_title}
+              </option>
+            ))
+          )}
         </select>
 
         {/* Load Data Button */}
@@ -181,7 +189,7 @@ const FeedbackWidget: React.FC = () => {
           {feedback.length === 0 ? (
             <p className="text-gray-500 text-sm">No feedback available for this event.</p>
           ) : (
-            feedback.map((fb, i) => (
+            feedback.map((fb) => (
               <div key={fb.feedback_id} className={`border-l-4 p-4 rounded-lg ${getSentimentColor(fb.rating)}`}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
