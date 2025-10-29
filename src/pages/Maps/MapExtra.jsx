@@ -1,6 +1,7 @@
 import { use, useEffect, useRef, useState } from "react";
 import MapComponent from "./Map";
 import NodeVisualizer from './NodeVisualizer';
+import BuildingEditor from './BuildingEditor';
 
 import { 
   map,
@@ -33,6 +34,7 @@ export default function MapExtra({kiosk_mode=false}) {
   const [isNavigating, setIsNavigating] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showNodeVisualizer, setShowNodeVisualizer] = useState(false);
+  const [showBuildingEditor, setShowBuildingEditor] = useState(false);
   const previousBuilding = useRef(null);
 
   // Removed mobile search functionality - not needed for this component
@@ -679,6 +681,62 @@ export default function MapExtra({kiosk_mode=false}) {
           <line x1="16.5" y1="16.5" x2="13.5" y2="13.5" stroke="white" strokeWidth="1.5" opacity={showNodeVisualizer ? "1" : "0.5"}/>
         </svg>
         <span style={{ fontWeight: 700 }}>{showNodeVisualizer ? "Nodes ON" : "Nodes OFF"}</span>
+      </button>
+
+      {/* Building Editor */}
+      {showBuildingEditor && (
+        <BuildingEditor
+          onClose={() => setShowBuildingEditor(false)}
+          onBuildingUpdated={(building) => {
+            console.log('Building updated:', building);
+            // Optionally refresh building data here if needed
+          }}
+        />
+      )}
+
+      {/* Building Editor Toggle Button */}
+      <button
+        onClick={() => setShowBuildingEditor(true)}
+        style={{
+          position: "fixed",
+          bottom: 20,
+          left: 160,
+          zIndex: 900,
+          background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+          color: "#ffffff",
+          border: "2px solid #ffffff",
+          borderRadius: 10,
+          padding: "10px 14px",
+          fontWeight: 600,
+          fontSize: "12px",
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2)",
+          transition: "all 0.2s ease",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          touchAction: "manipulation",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = "scale(1.05)";
+          e.currentTarget.style.boxShadow = "0 6px 16px rgba(59, 130, 246, 0.4), 0 3px 6px rgba(0, 0, 0, 0.25)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "scale(1)";
+          e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2)";
+        }}
+        title="Edit Buildings"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="7" height="7" stroke="white" strokeWidth="2" fill="none"/>
+          <rect x="4" y="13" width="7" height="7" stroke="white" strokeWidth="2" fill="none"/>
+          <rect x="13" y="4" width="7" height="7" stroke="white" strokeWidth="2" fill="none"/>
+          <rect x="13" y="13" width="7" height="7" stroke="white" strokeWidth="2" fill="none"/>
+        </svg>
+        <span style={{ fontWeight: 700 }}>Edit Buildings</span>
       </button>
 
       {/* Removed Mobile Search Bar - not needed for this component */}

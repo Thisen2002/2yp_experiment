@@ -537,6 +537,34 @@ app.get("/api/map/buildings/search", async (req, res) => {
 });
 
 /**
+ * GET /api/map/buildings/node/:nodeId/check
+ * Check if a node is already assigned to a building
+ * Path params:
+ *   - nodeId: Navigation node ID
+ * Response: { available: boolean, assignedTo: building object or null }
+ * Example: GET /api/map/buildings/node/88/check
+ * Note: MUST be defined BEFORE /:id route to avoid route conflicts
+ */
+app.get("/api/map/buildings/node/:nodeId/check", async (req, res) => {
+  try {
+    const nodeId = parseInt(req.params.nodeId);
+    if (isNaN(nodeId)) {
+      return res.status(400).json({ error: 'Invalid node ID' });
+    }
+
+    const assignment = await buildingService.getBuildingByNodeId(nodeId);
+
+    res.json({
+      available: !assignment,
+      assignedTo: assignment
+    });
+  } catch (error) {
+    console.error(`Error checking node ${req.params.nodeId}:`, error);
+    res.status(500).json({ error: 'Failed to check node assignment' });
+  }
+});
+
+/**
  * GET /api/map/buildings/:id
  * Get building by database ID
  * Path params:
@@ -628,6 +656,59 @@ app.get("/api/map/buildings/zone/:zoneId", async (req, res) => {
   } catch (error) {
     console.error(`Error fetching buildings for zone ${req.params.zoneId}:`, error);
     res.status(500).json({ error: 'Failed to fetch buildings' });
+  }
+});
+
+/**
+ * PUT /api/map/buildings/:id
+ * Update building details and node assignment
+ * Path params:
+ *   - id: building_ID
+ * Body:
+ *   - building_name: New name (optional)
+ *   - description: New description (optional)
+ *   - node_id: Node ID to assign (optional, null to unassign)
+ *   - zone_id: New zone ID (optional)
+ *   - exhibits: New exhibits array (optional)
+ * Response: Updated building object
+ * Example: PUT /api/map/buildings/1 { "node_id": 88 }
+ */
+app.put("/api/map/buildings/:id", async (req, res) => {
+  try {
+    const buildingId = parseInt(req.params.id);
+    if (isNaN(buildingId)) {
+      return res.status(400).json({ error: 'Invalid building ID' });
+    }
+
+    const updates = req.body;
+
+    // Check if node_id is being assigned
+    if (updates.node_id !== undefined && updates.node_id !== null) {
+      // Check if this node is already assigned to another building
+      const existingAssignment = await buildingService.getBuildingByNodeId(
+        updates.node_id,
+        buildingId
+      );
+
+      if (existingAssignment) {
+        return res.status(409).json({
+          error: 'Node already assigned',
+          message: `Node ${updates.node_id} is already assigned to building "${existingAssignment.building_name}" (ID: ${existingAssignment.building_ID})`,
+          assignedTo: existingAssignment
+        });
+      }
+    }
+
+    const updatedBuilding = await buildingService.updateBuilding(buildingId, updates);
+
+    if (!updatedBuilding) {
+      return res.status(404).json({ error: 'Building not found' });
+    }
+
+    res.json(updatedBuilding);
+  } catch (error) {
+    console.error(`Error updating building ${req.params.id}:`, error);
+    res.status(500).json({ error: 'Failed to update building', details: error.message });
   }
 });
 

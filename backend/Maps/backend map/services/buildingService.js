@@ -209,6 +209,107 @@ class BuildingService {
   }
 
   /**
+   * Update building details
+   * API: PUT /api/map/buildings/:id
+   * @param {number} buildingId - Building ID to update
+   * @param {Object} updates - Fields to update
+   * @param {string} updates.building_name - New building name
+   * @param {string} updates.description - New description
+   * @param {number} updates.node_id - New node ID assignment (null to unassign)
+   * @param {number} updates.zone_id - New zone ID
+   * @param {array} updates.exhibits - New exhibits array
+   * @returns {Object} Updated building object
+   */
+  async updateBuilding(buildingId, updates) {
+    try {
+      // Build dynamic UPDATE query based on provided fields
+      const fields = [];
+      const values = [];
+      let paramCount = 1;
+
+      if (updates.building_name !== undefined) {
+        fields.push(`building_name = $${paramCount++}`);
+        values.push(updates.building_name);
+      }
+      if (updates.description !== undefined) {
+        fields.push(`description = $${paramCount++}`);
+        values.push(updates.description);
+      }
+      if (updates.node_id !== undefined) {
+        fields.push(`node_id = $${paramCount++}`);
+        values.push(updates.node_id);
+      }
+      if (updates.zone_id !== undefined) {
+        fields.push(`zone_id = $${paramCount++}`);
+        values.push(updates.zone_id);
+      }
+      if (updates.exhibits !== undefined) {
+        fields.push(`exhibits = $${paramCount++}`);
+        values.push(JSON.stringify(updates.exhibits));
+      }
+
+      if (fields.length === 0) {
+        throw new Error('No fields to update');
+      }
+
+      values.push(buildingId);
+
+      const result = await pool.query(`
+        UPDATE map_buildings
+        SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+        WHERE building_id = $${paramCount}
+        RETURNING 
+          building_id as "building_ID",
+          building_name,
+          description,
+          svg_id,
+          node_id,
+          zone_id as "zone_ID",
+          exhibits,
+          coordinates
+      `, values);
+
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error(`Error updating building ${buildingId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a node is already assigned to a building
+   * Used to prevent double-assignment of nodes
+   * @param {number} nodeId - Node ID to check
+   * @param {number} excludeBuildingId - Optional building ID to exclude from check
+   * @returns {Object|null} Building using this node, or null if available
+   */
+  async getBuildingByNodeId(nodeId, excludeBuildingId = null) {
+    try {
+      let sql = `
+        SELECT 
+          building_id as "building_ID",
+          building_name,
+          svg_id,
+          node_id
+        FROM map_buildings
+        WHERE node_id = $1
+      `;
+      const params = [nodeId];
+
+      if (excludeBuildingId) {
+        sql += ` AND building_id != $2`;
+        params.push(excludeBuildingId);
+      }
+
+      const result = await pool.query(sql, params);
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error(`Error checking node assignment ${nodeId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Get all mappings for quick lookups
    * API: GET /api/map/buildings/mappings
    * @returns {Object} Object containing NAME_TO_SVG, DB_TO_SVG, SVG_TO_NODE, SVG_TO_BUILDING mappings
