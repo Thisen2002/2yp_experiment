@@ -2,6 +2,17 @@
 // SINGLE SOURCE OF TRUTH for all building data and mappings
 // Imports from shared/buildings.json to ensure consistency between frontend and backend
 
+/* NodeVisualizer:
+
+- View all navigation nodes (colored by connectivity status)
+- Add new nodes at precise GPS coordinates
+- Create edges (connections) between nodes
+- Remove edges between nodes
+- Delete nodes from the graph
+- Edit/move existing nodes to new positions
+
+---*/
+
 import buildingsData from '../../shared/buildings.json';
 
 /**
@@ -22,6 +33,12 @@ export const DB_TO_SVG = BUILDINGS.reduce((map, building) => {
 }, {});
 
 // Building Name to SVG ID mapping
+/*{
+  "building_ID": 1,
+  "building_name": "Engineering Faculty",
+  "svg_id": "pth_eng",
+  "node_id": 42,
+  }*/
 export const NAME_TO_SVG = BUILDINGS.reduce((map, building) => {
   map[building.building_name] = building.svg_id;
   return map;

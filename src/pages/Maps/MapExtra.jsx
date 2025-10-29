@@ -204,25 +204,32 @@ export default function MapExtra({kiosk_mode=false}) {
     };
   }, [map]);
 
+/*✅ Reads ?location=Engineering%20Workshop from URL
+  ✅ Waits 500ms for map initialization
+  ✅ Looks up the building name in the mapping table
+  ✅ Calls highlighting function
+  ✅ Opens the building info sheet
+  ✅ Removes the URL parameter (so reload doesn't re-trigger)*/
+  
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      const loc = params.get('location');
+      const loc = params.get('location');   // e.g., "Engineering Workshop"
       console.log("URL param location:", loc);
-      if (loc) {
+      if (loc) { 
         // Delay slightly to ensure map has initialized
-        setTimeout(() => {
-          const mapCode = buildingMappings.NAME_TO_SVG[loc] || null;
+        setTimeout(() => { 
+          const mapCode = buildingMappings.NAME_TO_SVG[loc] || null; // Convert building name to SVG ID
           if (mapCode) {
-            highlightSelectedBuilding(mapCode);
-            setSelectedBuilding(mapCode);
-            setIsSheetOpen(true);
+            highlightSelectedBuilding(mapCode);  // Highlight on map
+            setSelectedBuilding(mapCode); // Store in state
+            setIsSheetOpen(true); // Open info panel
           }
           
           console.log("Highlighting building by name:", loc, "->", mapCode);
         }, 500);
   
-        // ✅ Clear the query param after first use so it doesn’t trigger again
+        // ✅ Clear the URL parameter (prevent re-triggering on refresh)
         const url = new URL(window.location);
         url.searchParams.delete('location');
         window.history.replaceState({}, '', url); 
@@ -230,7 +237,7 @@ export default function MapExtra({kiosk_mode=false}) {
     } catch (e) {
       console.error("Redirect flow error:", e);
     }
-  }, []);
+  }, []); // Runs once on component mount
 
   // Use central config instead of hardcoded mapping
   const nameToMapCode = buildingMappings.NAME_TO_SVG;
@@ -405,9 +412,9 @@ export default function MapExtra({kiosk_mode=false}) {
             
             setupButton(actualZoomInBtn, zoomIn, 'In');
             setupButton(actualZoomOutBtn, zoomOut, 'Out');
-          } else {
+          } /*else {
             console.log('Zoom controls not found, retrying...');
-          }
+          }*/
         }, 100);
       }
     };

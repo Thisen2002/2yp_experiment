@@ -3,7 +3,9 @@ const http = require('http');
 const {Server} = require('socket.io');
 const cors = require("cors");
 const bodyParser = require("body-parser");
-const routeFromArbitraryPoint = require("./routing")
+const routing = require("./routing");
+const routeFromArbitraryPoint = routing.default || routing.routeFromArbitraryPoint || routing;
+const clearNavigationCache = routing.clearNavigationCache;
 const searchDatabase = require('./search');
 const fs = require('fs/promises');
 const pool = require('./db');  // PostgreSQL connection
@@ -169,8 +171,9 @@ app.get("/api/navigation/graph", async (req, res) => {
       `)
     ]);
     
-    // Transform to match path.json format
+    // Transform to match path.json format (with node_index included)
     const nodes = nodesResult.rows.map(row => ({
+      index: row.node_index,  // Include the node_index
       lat: parseFloat(row.latitude),
       lng: parseFloat(row.longitude)
     }));
@@ -183,11 +186,17 @@ app.get("/api/navigation/graph", async (req, res) => {
     }));
     
     res.json({ nodes, edges });
-    console.log(`✅ Served complete navigation graph: ${nodes.length} nodes, ${edges.length} edges`);
+    console.log(`✅ Served complete navigation graph: ${nodes.length} nodes, ${edges.length} edges (from DATABASE)`);
   } catch (error) {
     console.error('❌ Error fetching navigation graph:', error);
     res.status(500).json({ error: 'Failed to fetch navigation graph' });
   }
+});
+
+// GET /api/navigation/cache/status - Check cache status
+app.get("/api/navigation/cache/status", (req, res) => {
+  const status = routing.getCacheStatus ? routing.getCacheStatus() : { error: 'Function not available' };
+  res.json(status);
 });
 
 // GET /api/navigation/node/:index - Get specific node by index
@@ -239,6 +248,9 @@ app.post("/api/navigation/node", async (req, res) => {
       RETURNING *
     `, [node_index, latitude, longitude]);
     
+    // Clear routing cache since data changed
+    clearNavigationCache();
+    
     res.status(201).json({
       message: 'Node created successfully',
       node: result.rows[0]
@@ -260,26 +272,84 @@ app.put("/api/navigation/node/:index", async (req, res) => {
     const nodeIndex = parseInt(req.params.index);
     const { latitude, longitude } = req.body;
     
+    console.log(`🔧 PUT /api/navigation/node/${nodeIndex} - Updating to [${latitude}, ${longitude}]`);
+    
     if (isNaN(nodeIndex) || !latitude || !longitude) {
       return res.status(400).json({ error: 'Invalid parameters' });
     }
     
-    const result = await pool.query(`
-      UPDATE navigation_nodes
-      SET latitude = $1, longitude = $2, updated_at = CURRENT_TIMESTAMP
-      WHERE node_index = $3
-      RETURNING *
-    `, [latitude, longitude, nodeIndex]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Node not found' });
+    // Start a transaction to update both node and connected edges
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Update the node
+      const nodeResult = await client.query(`
+        UPDATE navigation_nodes
+        SET latitude = $1, longitude = $2, updated_at = CURRENT_TIMESTAMP
+        WHERE node_index = $3
+        RETURNING *
+      `, [latitude, longitude, nodeIndex]);
+      
+      if (nodeResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Node not found' });
+      }
+      
+      // Find all edges connected to this node
+      const edgesResult = await client.query(`
+        SELECT edge_code, from_node, to_node, path_coordinates
+        FROM navigation_edges
+        WHERE from_node = $1 OR to_node = $1
+      `, [nodeIndex]);
+      
+      console.log(`📊 Found ${edgesResult.rows.length} edges connected to node ${nodeIndex}`);
+      
+      // Update each connected edge's path coordinates
+      for (const edge of edgesResult.rows) {
+        let coords = edge.path_coordinates;
+        
+        // Update first coordinate if this node is the 'from' node
+        if (edge.from_node === nodeIndex && coords.length > 0) {
+          coords[0] = [parseFloat(latitude), parseFloat(longitude)];
+          console.log(`  ✏️ Updated edge ${edge.edge_code} start point`);
+        }
+        
+        // Update last coordinate if this node is the 'to' node
+        if (edge.to_node === nodeIndex && coords.length > 0) {
+          coords[coords.length - 1] = [parseFloat(latitude), parseFloat(longitude)];
+          console.log(`  ✏️ Updated edge ${edge.edge_code} end point`);
+        }
+        
+        // Save updated coordinates back to database
+        await client.query(`
+          UPDATE navigation_edges
+          SET path_coordinates = $1, updated_at = CURRENT_TIMESTAMP
+          WHERE edge_code = $2
+        `, [JSON.stringify(coords), edge.edge_code]);
+      }
+      
+      await client.query('COMMIT');
+      
+      // Clear routing cache since data changed
+      console.log(`🗑️ ABOUT TO CLEAR CACHE for node ${nodeIndex} update`);
+      clearNavigationCache();
+      console.log(`✅ Cache cleared, should reload on next navigation`);
+      
+      res.json({
+        message: 'Node updated successfully',
+        node: nodeResult.rows[0],
+        updatedEdges: edgesResult.rows.length
+      });
+      console.log(`✅ Updated node ${nodeIndex} to [${latitude}, ${longitude}] and ${edgesResult.rows.length} connected edges`);
+      
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
     
-    res.json({
-      message: 'Node updated successfully',
-      node: result.rows[0]
-    });
-    console.log(`✅ Updated node ${nodeIndex} to [${latitude}, ${longitude}]`);
   } catch (error) {
     console.error('❌ Error updating node:', error);
     res.status(500).json({ error: 'Failed to update node' });
@@ -305,6 +375,9 @@ app.delete("/api/navigation/node/:index", async (req, res) => {
       return res.status(404).json({ error: 'Node not found' });
     }
     
+    // Clear routing cache since data changed
+    clearNavigationCache();
+    
     res.json({
       message: 'Node deleted successfully',
       deleted_node_index: result.rows[0].node_index
@@ -313,6 +386,86 @@ app.delete("/api/navigation/node/:index", async (req, res) => {
   } catch (error) {
     console.error('❌ Error deleting node:', error);
     res.status(500).json({ error: 'Failed to delete node' });
+  }
+});
+
+// POST /api/navigation/edge - Create new edge
+app.post("/api/navigation/edge", async (req, res) => {
+  try {
+    const { edge_code, from_node, to_node, path_coordinates } = req.body;
+    
+    if (!edge_code || from_node === undefined || to_node === undefined || !path_coordinates) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: edge_code, from_node, to_node, path_coordinates' 
+      });
+    }
+    
+    // Validate path_coordinates is an array
+    if (!Array.isArray(path_coordinates)) {
+      return res.status(400).json({ error: 'path_coordinates must be an array' });
+    }
+    
+    const result = await pool.query(`
+      INSERT INTO navigation_edges (edge_code, from_node, to_node, path_coordinates)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `, [edge_code, from_node, to_node, JSON.stringify(path_coordinates)]);
+    
+    // Clear routing cache since data changed
+    clearNavigationCache();
+    
+    res.status(201).json({
+      message: 'Edge created successfully',
+      edge: {
+        id: result.rows[0].edge_code,
+        from: result.rows[0].from_node,
+        to: result.rows[0].to_node,
+        coords: result.rows[0].path_coordinates
+      }
+    });
+    console.log(`✅ Created edge ${edge_code}: ${from_node} → ${to_node}`);
+  } catch (error) {
+    if (error.code === '23505') { // Unique violation
+      res.status(409).json({ error: 'Edge already exists' });
+    } else if (error.code === '23503') { // Foreign key violation
+      res.status(400).json({ error: 'Invalid node reference - node(s) do not exist' });
+    } else {
+      console.error('❌ Error creating edge:', error);
+      res.status(500).json({ error: 'Failed to create edge' });
+    }
+  }
+});
+
+// DELETE /api/navigation/edge/:edge_code - Delete an edge
+app.delete("/api/navigation/edge/:edge_code", async (req, res) => {
+  try {
+    const edgeCode = req.params.edge_code;
+    
+    console.log(`🗑️ DELETE /api/navigation/edge/${edgeCode}`);
+    
+    const result = await pool.query(`
+      DELETE FROM navigation_edges
+      WHERE edge_code = $1
+      RETURNING *
+    `, [edgeCode]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Edge not found' });
+    }
+    
+    // Clear routing cache since data changed
+    console.log(`🗑️ CLEARING CACHE after edge ${edgeCode} deletion`);
+    clearNavigationCache();
+    console.log(`✅ Cache cleared`);
+    
+    res.json({
+      message: 'Edge deleted successfully',
+      edge: result.rows[0]
+    });
+    console.log(`✅ Deleted edge ${edgeCode}`);
+  } catch (error) {
+    console.error('❌ Error deleting edge:', error);
+    res.status(500).json({ error: 'Failed to delete edge' });
   }
 });
 
