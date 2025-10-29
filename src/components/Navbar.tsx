@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Users, Calendar, Info, Map, Bell, Brain } from 'lucide-react';
+import { Menu, X, Home, Users, Calendar, Info, Map, Bell, Brain, ArrowDownLeftFromCircleIcon } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface NavItem {
@@ -22,6 +22,7 @@ const Navbar: React.FC = () => {
     { path: '/information', label: 'Information', icon: Info },
     { path: '/notifications', label: 'Notifications', icon: Bell },
     { path: '/memories', label: 'Memories', icon: Brain },
+    { path: '/lost-found', label: 'Lost & Found', icon: ArrowDownLeftFromCircleIcon },
   ];
 
   const toggleMenu = (): void => {
