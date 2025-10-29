@@ -41,9 +41,9 @@ router.post('/notifications', async (req, res) => {
         return res.status(400).json({ error: 'category and message are required' });
     }
 
-    if (!ALLOWED_CATEGORIES.includes(category)) {
-        return res.status(400).json({ error: `Invalid category. Allowed: ${ALLOWED_CATEGORIES.join(', ')}` });
-    }
+    // if (!ALLOWED_CATEGORIES.includes(category) || ) {
+    //     return res.status(400).json({ error: `Invalid category. Allowed: ${ALLOWED_CATEGORIES.join(', ')}` });
+    // }
 
     // Use cookie userId as fallback for created_by
     const author = created_by || req.cookies?.userId || null;
@@ -99,9 +99,9 @@ router.post('/notifications/now/upload', upload.single('image'), async (req, res
         return res.status(400).json({ error: 'category and message are required' });
     }
 
-    if (!ALLOWED_CATEGORIES.includes(category)) {
-        return res.status(400).json({ error: `Invalid category. Allowed: ${ALLOWED_CATEGORIES.join(', ')}` });
-    }
+    // if (!ALLOWED_CATEGORIES.includes(category)) {
+    //     return res.status(400).json({ error: `Invalid category. Allowed: ${ALLOWED_CATEGORIES.join(', ')}` });
+    // }
 
     const author = created_by || req.cookies?.userId || null;
 
@@ -203,9 +203,9 @@ router.get('/notifications', async (req, res) => {
 router.get('/notifications/category/:category', async (req, res) => {
     const { category } = req.params;
     if (!category) return res.status(400).json({ error: 'category is required' });
-    if (!ALLOWED_CATEGORIES.includes(category)) {
-        return res.status(400).json({ error: `Invalid category. Allowed: ${ALLOWED_CATEGORIES.join(', ')}` });
-    }
+    // if (!ALLOWED_CATEGORIES.includes(category)) {
+    //     return res.status(400).json({ error: `Invalid category. Allowed: ${ALLOWED_CATEGORIES.join(', ')}` });
+    // }
 
     try {
         const result = await pool.query(
@@ -287,9 +287,9 @@ router.post('/notifications/now', async (req, res) => {
         return res.status(400).json({ error: 'category and message are required' });
     }
 
-    if (!ALLOWED_CATEGORIES.includes(category)) {
-        return res.status(400).json({ error: `Invalid category. Allowed: ${ALLOWED_CATEGORIES.join(', ')}` });
-    }
+    // if (!ALLOWED_CATEGORIES.includes(category)) {
+    //     return res.status(400).json({ error: `Invalid category. Allowed: ${ALLOWED_CATEGORIES.join(', ')}` });
+    // }
 
     const author = created_by || req.cookies?.userId || null;
 
@@ -416,6 +416,35 @@ router.patch('/notifications/:id', async (req, res) => {
         console.error('❌ Failed to patch notification:', err.message || err);
         res.status(500).json({ error: 'Failed to update notification' });
     }
+});
+
+// Filter categories APIs: create and list
+// Mounted on the same router so paths will be e.g. /memories/filter_categories if this router is mounted at /memories
+router.post('/filter_categories', async (req, res) => {
+  const { filter_name } = req.body;
+  try{
+    const result = await pool.query(
+      `INSERT INTO filter_catagories (filter_name) VALUES ($1) RETURNING *`,
+      [filter_name]
+    );
+    // return created row
+    res.status(201).json({ category: result.rows[0] });
+  } catch (err) {
+    console.error('Failed to create filter category', err.message || err);
+    res.status(500).json({ error: 'Failed to create filter category' });
+  }
+});
+
+router.get('/filter_categories', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM filter_catagories ORDER BY created_at DESC');
+    // return as array of names for frontend convenience
+    const categories = r.rows.map((row) => row.filter_name);
+    res.json({ categories });
+  } catch (err) {
+    console.error('Failed to list filter categories', err.message || err);
+    res.status(500).json({ error: 'Failed to fetch filter categories' });
+  }
 });
 
 module.exports = router;

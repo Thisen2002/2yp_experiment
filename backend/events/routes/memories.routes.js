@@ -6,11 +6,11 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const axios = require('axios');
 
-// AI generation config (set IMAGE_AI_SERVICE_URL in env to enable)
+// AI generation config 
 const IMAGE_AI_SERVICE_URL = process.env.IMAGE_AI_SERVICE_URL || null;
 const IMAGE_AI_API_KEY = process.env.IMAGE_AI_API_KEY || null;
 
-// POST /memories - create a memory with optional image (multipart/form-data)
+// POST /memories - create a memory with 
 router.post('/memories', upload.single('image'), async (req, res) => {
   const { title, note, created_by } = req.body;
   const userId = created_by || req.cookies?.userId || null;

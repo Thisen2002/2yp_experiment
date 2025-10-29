@@ -14,7 +14,9 @@ type NotificationRecord = {
   expires_at?: string | null;
 };
 
-const ALLOWED_CATEGORIES = ['lost_found', 'missing_person', 'vehicle', 'weather_alert'];
+// default client-side categories used as a fallback when backend has none
+const DEFAULT_CATEGORIES = ['lost_found', 'missing_person', 'vehicle', 'weather_alert'];
+const ALLOWED_CATEGORIES: string[] = DEFAULT_CATEGORIES;
 const ALLOWED_SEVERITIES = ['low', 'mid', 'high'];
 
 export default function NotificationsPage() {
@@ -24,14 +26,35 @@ export default function NotificationsPage() {
 
   // Filters
   const [categories, setCategories] = useState<string[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<string[]>(ALLOWED_CATEGORIES);
   const [severity, setSeverity] = useState<string>('');
   const [status, setStatus] = useState<string>('');
   const [q, setQ] = useState<string>('');
 
   useEffect(() => {
     fetchList();
+    fetchCategories();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function fetchCategories() {
+    try {
+      const res = await fetch('http://localhost:3036/api/filter_categories', { credentials: 'include' });
+      if (!res.ok) {
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('text/html')) throw new Error('Backend returned HTML. Is the API server running or proxy configured?');
+        throw new Error(`${res.status} ${res.statusText}`);
+      }
+      const data = await res.json();
+  const list = Array.isArray(data.categories) ? data.categories : [];
+  // if backend returns empty, fall back to sensible defaults so UI isn't blank
+  setAvailableCategories(list.length ? list : DEFAULT_CATEGORIES);
+    } catch (err: any) {
+      // don't block the page if categories fail to load; log and fall back to defaults
+      console.error('Failed to fetch filter categories', err?.message || err);
+      setAvailableCategories(DEFAULT_CATEGORIES);
+    }
+  }
 
   async function fetchList() {
     setLoading(true);
@@ -114,18 +137,22 @@ export default function NotificationsPage() {
 
           <div className="flex items-center gap-2">
             <label className="font-medium">Categories</label>
-            <div className="flex gap-2">
-              {ALLOWED_CATEGORIES.map((c) => (
-                <label key={c} className={`px-2 py-1 border rounded cursor-pointer ${categories.includes(c) ? 'bg-blue-100' : ''}`}>
-                  <input type="checkbox" checked={categories.includes(c)} onChange={() => toggleCategory(c)} className="mr-2" />
-                  {c}
-                </label>
-              ))}
+            <div className="flex gap-2 items-center">
+              {availableCategories.length === 0 ? (
+                <div className="text-sm text-gray-500">No categories</div>
+              ) : (
+                availableCategories.map((c) => (
+                  <label key={c} className={`px-2 py-1 border rounded cursor-pointer ${categories.includes(c) ? 'bg-blue-100' : ''}`}>
+                    <input type="checkbox" checked={categories.includes(c)} onChange={() => toggleCategory(c)} className="mr-2" />
+                    {c}
+                  </label>
+                ))
+              )}
             </div>
           </div>
 
           <div className="ml-auto">
-            <button onClick={fetchList} className="px-3 py-1 bg-gray-200 rounded">Refresh</button>
+            <button onClick={() => { fetchList(); fetchCategories(); }} className="px-3 py-1 bg-gray-200 rounded">Refresh</button>
           </div>
         </div>
       </div>

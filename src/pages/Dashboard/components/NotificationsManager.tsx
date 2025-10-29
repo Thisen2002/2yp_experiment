@@ -15,10 +15,11 @@ type NotificationRecord = {
   expires_at?: string | null;
 };
 
-const ALLOWED_CATEGORIES = ['lost_found', 'missing_person', 'vehicle', 'weather_alert'];
+const DEFAULT_CATEGORIES = ['lost_found', 'missing_person', 'vehicle', 'weather_alert'];   //CHANGED
 const ALLOWED_SEVERITIES = ['low', 'mid', 'high'];
 
 export default function NotificationsManager() {
+  const [allowedCategories, setAllowedCategories] = useState<string[]>(DEFAULT_CATEGORIES);    //CHANGED
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +28,7 @@ export default function NotificationsManager() {
 
   // Form state for create/edit
   const [form, setForm] = useState<Partial<NotificationRecord>>({
-    category: ALLOWED_CATEGORIES[0],
+    category: DEFAULT_CATEGORIES[0],
     title: '',
     message: '',
     payload: '',
@@ -58,8 +59,31 @@ export default function NotificationsManager() {
 
   useEffect(() => {
     fetchNotifications();
+    fetchCategories();  //NEW
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function fetchCategories() {
+    try {
+      let res = await fetch(`http://localhost:3036/api/filter_categories`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Could not load categories');
+      const data = await res.json();
+      // Expecting { categories: ['a','b', ...] } or rows like [{filter_name: 'lost_found'}]
+      let cats: string[] = [];
+      if (Array.isArray(data.categories)) {
+        cats = data.categories;
+      } else if (Array.isArray(data)) {
+        // support plain array or rows
+        cats = data.map((r: any) => r.filter_name ?? r.name ?? r.category).filter(Boolean);
+      } else if (data.rows && Array.isArray(data.rows)) {
+        cats = data.rows.map((r: any) => r.filter_name || r.name).filter(Boolean);
+      }
+      if (cats.length) setAllowedCategories(cats);
+    } catch (e) {
+      // keep defaults on error
+      console.warn('Failed to fetch categories, using defaults', e);
+    }
+  }
 
   async function fetchNotifications() {
     setLoading(true);
@@ -166,8 +190,8 @@ export default function NotificationsManager() {
       // Refresh list
       await fetchNotifications();
   // Reset form
-  setForm({ category: ALLOWED_CATEGORIES[0], title: '', message: '', payload: '', location: '', severity: ALLOWED_SEVERITIES[0], expires_at: undefined });
-      setEditingId(null);
+  setForm({ category: allowedCategories[0] || DEFAULT_CATEGORIES[0], title: '', message: '', payload: '', location: '', severity: ALLOWED_SEVERITIES[0], expires_at: undefined });
+   setEditingId(null);
     } catch (err: any) {
       setError(String(err.message || err));
     }
@@ -203,7 +227,6 @@ export default function NotificationsManager() {
     // (uploads during edit are not implemented here). Clear any selected file.
     setImageFile(null);
   }
-
   return (
     <div className="p-4 bg-white rounded shadow">
       <h2 className="text-xl font-semibold mb-3">Notifications Manager</h2>
@@ -212,7 +235,8 @@ export default function NotificationsManager() {
       <form onSubmit={handleCreateOrUpdate} className="space-y-3 mb-6">
         <div className="flex gap-3 flex-wrap">
           <select value={form.category ?? ''} onChange={(e) => handleChange('category', e.target.value)} className="border rounded p-2">
-            {ALLOWED_CATEGORIES.map((c) => (
+            <option value="" disabled>Select category</option>
+            {allowedCategories.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
@@ -259,8 +283,9 @@ export default function NotificationsManager() {
 
         <div className="flex items-center gap-2">
           <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded">{editingId ? 'Update' : 'Create'}</button>
-          {editingId && <button type="button" onClick={() => { setEditingId(null); setForm({ category: ALLOWED_CATEGORIES[0], title: '', message: '', payload: '', location: '', severity: ALLOWED_SEVERITIES[0], expires_at: undefined }); }} className="px-3 py-1 border rounded">Cancel</button>}
-          <button type="button" onClick={() => { setForm({ category: ALLOWED_CATEGORIES[0], title: '', message: '', payload: '', location: '', severity: ALLOWED_SEVERITIES[0], expires_at: undefined }); setEditingId(null); }} className="px-3 py-1 border rounded">Clear</button>
+          {editingId && <button type="button" onClick={() => { setForm({ category: allowedCategories[0] || DEFAULT_CATEGORIES[0], title: '', message: '', payload: '', location: '', severity: ALLOWED_SEVERITIES[0], expires_at: undefined }); setEditingId(null); }} className="px-3 py-1 border rounded">Cancel</button>}
+          <button type="button" onClick={() => { setForm({ category: allowedCategories[0] || DEFAULT_CATEGORIES[0], title: '', message: '', payload: '', location: '', severity: ALLOWED_SEVERITIES[0], expires_at: undefined });
+   setEditingId(null); }} className="px-3 py-1 border rounded">Clear</button>
         </div>
       </form>
 
@@ -269,7 +294,7 @@ export default function NotificationsManager() {
         <div className="flex gap-3 flex-wrap items-center">
           <strong>Filter categories:</strong>
           <button onClick={() => setSelectedCategories([])} className="px-2 py-1 border rounded">All</button>
-          {ALLOWED_CATEGORIES.map((c) => (
+          {allowedCategories.map((c) => (
             <label key={c} className={`px-2 py-1 border rounded cursor-pointer ${selectedCategories.includes(c) ? 'bg-blue-100' : ''}`}>
               <input type="checkbox" checked={selectedCategories.includes(c)} onChange={() => toggleCategory(c)} className="mr-2" />
               {c}
