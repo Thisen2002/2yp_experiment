@@ -1,11 +1,14 @@
-const express = require("express");
-require("dotenv").config();
+const express = require("express"); // Express framework
+require("dotenv").config();  // Load environment variables from .env file
 const pool = require("./db");  // PostgreSQL connection pool
 // Start periodic event sync
 // require("./fetchAndSyncEvents");
-const cookieParser = require("cookie-parser");
-const { v4: uuidv4 } = require("uuid");
-const cors = require("cors");
+const cookieParser = require("cookie-parser"); // Middleware to parse cookies
+                    /*"Parse cookies" means reading the HTTP Cookie header from incoming 
+                    requests and turning it into a usable JavaScript object 
+                    (so you can access cookies as req.cookies.foo).*/
+const { v4: uuidv4 } = require("uuid");  // For generating unique user IDs
+const cors = require("cors"); // Middleware to enable CORS (Cross-Origin Resource Sharing)
 
 // routes
 const eventRoutes = require("./routes/events.routes");
@@ -31,8 +34,8 @@ app.use(
     })
 );
 
-app.use(express.json());
-app.use(cookieParser());
+app.use(express.json());  //put json data into req.body
+app.use(cookieParser());  // put cookies into req.cookies
 
 // Set a stable userId cookie if missing
 app.use((req, res, next) => {

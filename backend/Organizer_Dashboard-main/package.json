@@ -1,8 +1,0 @@
-{
-  "devDependencies": {
-    "ws": "^8.18.3"
-  },
-  "dependencies": {
-    "dotenv": "^17.2.2"
-  }
-}
