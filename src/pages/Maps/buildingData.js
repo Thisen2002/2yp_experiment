@@ -2,21 +2,12 @@
 // Sample building data for testing the interactive exhibition map
 // NOW IMPORTS FROM CENTRAL CONFIG - DO NOT DUPLICATE DATA HERE!
 
-import buildingMappings from "../../config/buildingMappings";
-
-// No more duplicate other_buildings - all data comes from shared/buildings.json
-// Buildings 49-52 are already in the shared data
-
-// Import building data from central config
-const buildingData = buildingMappings.BUILDINGS.map(b => ({
-  building_ID: b.building_ID,
-  zone_ID: b.zone_ID,
-  building_name: b.building_name,
-  description: b.description,
-  exhibits: b.exhibits || [],
-  coordinates: b.coordinates,
-  svg_id: b.svg_id
-}));
+import { 
+  getAllBuildings as fetchAllBuildings,
+  getBuildingById as fetchBuildingById,
+  getBuildingsByZone as fetchBuildingsByZone,
+  searchBuildings as fetchSearchBuildings
+} from "../../config/buildingMappings";
 
 // Zone information (matches database schema)
 const zoneData = [
@@ -38,21 +29,22 @@ const zoneData = [
   }
 ];
 
-// Helper functions - now using central config
-const getBuildingById = (id) => {
-  return buildingMappings.getBuildingById(id);
+// Helper functions - now async to support database fetching
+const getBuildingById = async (id) => {
+  return await fetchBuildingById(id);
 };
 
-const getBuildingsByZone = (zoneId) => {
-  return buildingMappings.getBuildingsByZone(zoneId);
+const getBuildingsByZone = async (zoneId) => {
+  return await fetchBuildingsByZone(zoneId);
 };
 
-const searchBuildings = (query, options = {}) => {
-  return buildingMappings.searchBuildings(query, options);
+const searchBuildings = async (query, options = {}) => {
+  return await fetchSearchBuildings(query, options);
 };
 
-const getAllBuildings = () => {
-  return buildingMappings.getAllBuildings().map(building => ({
+const getAllBuildings = async () => {
+  const buildings = await fetchAllBuildings();
+  return buildings.map(building => ({
     building_id: building.building_ID,
     building_name: building.building_name,
     description: building.description,
@@ -63,9 +55,23 @@ const getAllBuildings = () => {
   }));
 };
 
+// Async function to get building data array
+const getBuildingData = async () => {
+  const buildings = await fetchAllBuildings();
+  return buildings.map(b => ({
+    building_ID: b.building_ID,
+    zone_ID: b.zone_ID,
+    building_name: b.building_name,
+    description: b.description,
+    exhibits: b.exhibits || [],
+    coordinates: b.coordinates,
+    svg_id: b.svg_id
+  }));
+};
+
 // Export the data and functions
 export {
-  buildingData,
+  getBuildingData,
   zoneData,
   getBuildingById,
   getBuildingsByZone,
@@ -73,4 +79,5 @@ export {
   getAllBuildings
 };
 
-export default buildingData;
+// For components expecting default export, provide async getter
+export default getBuildingData;

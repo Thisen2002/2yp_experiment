@@ -40,16 +40,23 @@ export default function MapExtra({kiosk_mode=false}) {
   // Engineering themed dummy building data (extend as needed)
 
   const getBuildingInfo = (buildingId) => {
-    console.log(`To be found building at 71: ${buildingId}`)
-    console.log(`=================================================================================================`);
-    fetchedBuilding.current.forEach(b => {
-      
-      console.log(`Building in list: ${b.building_id} ${b.building_name} mapped to ${buildingApiService.mapDatabaseIdToSvgId(b.building_id)}`);
-      
-    });
-    console.log(`=================================================================================================`);
-    const building = fetchedBuilding.current.find(b => buildingId === buildingApiService.mapDatabaseIdToSvgId(b.building_id));
-    console.log(`found building at 71: ${building}`)
+    console.log(`Looking for building with svg_id: ${buildingId}`);
+    console.log(`Total buildings loaded: ${fetchedBuilding.current.length}`);
+    
+    if (fetchedBuilding.current.length > 0) {
+      console.log(`Sample building structure:`, fetchedBuilding.current[0]);
+    }
+    
+    // Buildings now have svg_id directly from database
+    const building = fetchedBuilding.current.find(b => b.svg_id === buildingId);
+    
+    if (building) {
+      console.log(`✅ Found building: ${building.building_name}`);
+    } else {
+      console.log(`❌ Building not found for svg_id: ${buildingId}`);
+      console.log(`Available svg_ids:`, fetchedBuilding.current.map(b => b.svg_id).join(', '));
+    }
+    
     return building;
   };
 
@@ -210,7 +217,7 @@ export default function MapExtra({kiosk_mode=false}) {
   ✅ Calls highlighting function
   ✅ Opens the building info sheet
   ✅ Removes the URL parameter (so reload doesn't re-trigger)*/
-  
+
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -461,20 +468,28 @@ export default function MapExtra({kiosk_mode=false}) {
       // Clear any existing routes before starting new navigation
       clearRoute();
       
-      let c = buildingToNode(selectedBuilding) 
-      sendMessage('position-update', {coords:getUserPosition(), node: c})
-      unsubscribeGps = addGpsListner((latLng) => {
-        if (isNavigating) {
-          if (c) {
-            sendMessage('position-update', {coords:latLng, node: c})
-          }
-          
+      // buildingToNode is now async, so we need to await it
+      (async () => {
+        const nodeId = await buildingToNode(selectedBuilding);
+        console.log(`Building ${selectedBuilding} mapped to node ${nodeId}`);
+        
+        if (!nodeId) {
+          console.error(`No node mapping found for building ${selectedBuilding}`);
+          return;
         }
         
-      })
-  
-      unsubscribeRouteListner = addMessageListner('route-update', (r) => drawRoute(r));
-  
+        sendMessage('position-update', {coords: getUserPosition(), node: nodeId});
+        
+        unsubscribeGps = addGpsListner((latLng) => {
+          if (isNavigating) {
+            if (nodeId) {
+              sendMessage('position-update', {coords: latLng, node: nodeId});
+            }
+          }
+        });
+    
+        unsubscribeRouteListner = addMessageListner('route-update', (r) => drawRoute(r));
+      })();
       
     } else {
       

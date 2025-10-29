@@ -9,6 +9,7 @@ const clearNavigationCache = routing.clearNavigationCache;
 const searchDatabase = require('./search');
 const fs = require('fs/promises');
 const pool = require('./db');  // PostgreSQL connection
+const buildingService = require('./services/buildingService');  // Building database service
 
 
 const app = express();
@@ -91,15 +92,20 @@ app.get('/map', async (req, res) => {
   }
 });
 
-app.get("/api/search", (req, res) => {
+app.get("/api/search", async (req, res) => {
   const { query, category, zone, subzone } = req.query;
 
   if (!query) {
     return res.status(400).json({ error: "Query parameter 'q' is required" });
   }
 
-  const results = searchDatabase(query, { category, zone, subzone });
-  res.json(results);
+  try {
+    const results = await searchDatabase(query, { category, zone, subzone });
+    res.json(results);
+  } catch (error) {
+    console.error("Error in search endpoint:", error);
+    res.status(500).json({ error: "Failed to search database" });
+  }
 });
 
 // =====================================================
@@ -469,6 +475,165 @@ app.delete("/api/navigation/edge/:edge_code", async (req, res) => {
   }
 });
 
+// =====================================================
+// BUILDING API ENDPOINTS (Database: map_buildings table)
+// Replaces old buildings.json with PostgreSQL queries
+// =====================================================
+
+/**
+ * GET /api/map/buildings
+ * Returns all 28 buildings from the database
+ * Response: Array of building objects with all fields
+ */
+app.get("/api/map/buildings", async (req, res) => {
+  try {
+    const buildings = await buildingService.getAllBuildings();
+    res.json(buildings);
+  } catch (error) {
+    console.error('Error fetching buildings:', error);
+    res.status(500).json({ error: 'Failed to fetch buildings' });
+  }
+});
+
+/**
+ * GET /api/map/buildings/mappings
+ * Returns all mapping objects for frontend use
+ * Response: { NAME_TO_SVG, DB_TO_SVG, SVG_TO_NODE, SVG_TO_BUILDING }
+ * Used by: buildingMappings.js for quick lookups
+ */
+app.get("/api/map/buildings/mappings", async (req, res) => {
+  try {
+    const mappings = await buildingService.getMappings();
+    res.json(mappings);
+  } catch (error) {
+    console.error('Error fetching building mappings:', error);
+    res.status(500).json({ error: 'Failed to fetch building mappings' });
+  }
+});
+
+/**
+ * GET /api/map/buildings/search?q=query&zone=1
+ * Search buildings by name, description, or exhibits
+ * Query params:
+ *   - q: search query string (required)
+ *   - zone: optional zone filter (1-7)
+ * Response: Array of matching buildings
+ * Note: MUST be defined BEFORE /:id route to avoid conflicts
+ */
+app.get("/api/map/buildings/search", async (req, res) => {
+  try {
+    const { q, zone, subzone } = req.query;
+    
+    if (!q || q.trim() === '') {
+      return res.json([]);
+    }
+    
+    const buildings = await buildingService.searchBuildings(q, { zone, subzone });
+    res.json(buildings);
+  } catch (error) {
+    console.error('Error searching buildings:', error);
+    res.status(500).json({ error: 'Failed to search buildings' });
+  }
+});
+
+/**
+ * GET /api/map/buildings/:id
+ * Get building by database ID
+ * Path params:
+ *   - id: building_ID (integer, e.g., 1, 2, 3)
+ * Response: Building object or 404 if not found
+ * Example: GET /api/map/buildings/1 → Department of Chemical Engineering
+ */
+app.get("/api/map/buildings/:id", async (req, res) => {
+  try {
+    const buildingId = parseInt(req.params.id);
+    if (isNaN(buildingId)) {
+      return res.status(400).json({ error: 'Invalid building ID' });
+    }
+    
+    const building = await buildingService.getBuildingById(buildingId);
+    if (!building) {
+      return res.status(404).json({ error: 'Building not found' });
+    }
+    
+    res.json(building);
+  } catch (error) {
+    console.error(`Error fetching building ${req.params.id}:`, error);
+    res.status(500).json({ error: 'Failed to fetch building' });
+  }
+});
+
+/**
+ * GET /api/map/buildings/svg/:svgId
+ * Get building by SVG element ID
+ * Path params:
+ *   - svgId: SVG element ID (e.g., "b11", "b32", "b31")
+ * Response: Building object or 404 if not found
+ * Example: GET /api/map/buildings/svg/b11 → Engineering Faculty
+ * Note: Returns first match (some buildings share svg_id like b31)
+ */
+app.get("/api/map/buildings/svg/:svgId", async (req, res) => {
+  try {
+    const building = await buildingService.getBuildingBySvgId(req.params.svgId);
+    if (!building) {
+      return res.status(404).json({ error: 'Building not found' });
+    }
+    
+    res.json(building);
+  } catch (error) {
+    console.error(`Error fetching building by SVG ID ${req.params.svgId}:`, error);
+    res.status(500).json({ error: 'Failed to fetch building' });
+  }
+});
+
+/**
+ * GET /api/map/buildings/name/:name
+ * Get building by exact name match
+ * Path params:
+ *   - name: building_name (URL-encoded if contains spaces)
+ * Response: Building object or 404 if not found
+ * Example: GET /api/map/buildings/name/Engineering%20Library
+ */
+app.get("/api/map/buildings/name/:name", async (req, res) => {
+  try {
+    const building = await buildingService.getBuildingByName(req.params.name);
+    if (!building) {
+      return res.status(404).json({ error: 'Building not found' });
+    }
+    
+    res.json(building);
+  } catch (error) {
+    console.error(`Error fetching building by name ${req.params.name}:`, error);
+    res.status(500).json({ error: 'Failed to fetch building' });
+  }
+});
+
+/**
+ * GET /api/map/buildings/zone/:zoneId
+ * Get all buildings in a specific zone
+ * Path params:
+ *   - zoneId: zone_ID (1-7)
+ * Response: Array of buildings in the zone
+ * Example: GET /api/map/buildings/zone/1 → All Zone 1 buildings
+ */
+app.get("/api/map/buildings/zone/:zoneId", async (req, res) => {
+  try {
+    const zoneId = parseInt(req.params.zoneId);
+    if (isNaN(zoneId)) {
+      return res.status(400).json({ error: 'Invalid zone ID' });
+    }
+    
+    const buildings = await buildingService.getBuildingsByZone(zoneId);
+    res.json(buildings);
+  } catch (error) {
+    console.error(`Error fetching buildings for zone ${req.params.zoneId}:`, error);
+    res.status(500).json({ error: 'Failed to fetch buildings' });
+  }
+});
+
+// =====================================================
+// START HTTP SERVER
+// =====================================================
 
 server.listen(HTTP_PORT, () => {
   console.log(`Server running on http://localhost:${HTTP_PORT}`);

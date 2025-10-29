@@ -194,8 +194,8 @@ function initMap(map_div) {
 
 }
 
-function buildingToNode(id) {
-  return buildingMappings.mapSvgIdToNodeId(id);
+async function buildingToNode(id) {
+  return await buildingMappings.mapSvgIdToNodeId(id);
 }
 
 // Store route layers for proper cleanup
