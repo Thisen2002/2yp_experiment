@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import HomePage from './pages/HomePage';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -9,6 +10,7 @@ import AppDashboard from './pages/Dashboard/AppDash';
 import Appevents from "./pages/Events/Appevents"
 import CrowdManagement from './pages/Heatmap/CrowdManagement';
 import Dashboard from './pages/Maps/Dashboard';
+import { initializeBuildingData } from './config/buildingMappings';
 
 
 
@@ -16,6 +18,36 @@ function AppContent() {
   const location = useLocation();
   const isKiosk = location.pathname.startsWith('/kiosk');
   const isDashboard = location.pathname.startsWith('/dashboard');
+  const [buildingsLoaded, setBuildingsLoaded] = useState(false);
+
+  useEffect(() => {
+    // Initialize building data on app startup
+    initializeBuildingData().then(success => {
+      if (success) {
+        console.log('Building data initialized successfully');
+        setBuildingsLoaded(true);
+      } else {
+        console.error('Failed to initialize building data');
+        // Still allow app to run, but some features may not work
+        setBuildingsLoaded(true);
+      }
+    });
+  }, []);
+
+  // Show loading state while building data is being fetched
+  if (!buildingsLoaded) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        fontSize: '1.2rem'
+      }}>
+        Loading building data...
+      </div>
+    );
+  }
 
   return (
     <div className="App">

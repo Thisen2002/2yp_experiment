@@ -1,6 +1,7 @@
 import { use, useEffect, useRef, useState } from "react";
 import MapComponent from "./Map";
 import NodeVisualizer from './NodeVisualizer';
+import BuildingEditor from './BuildingEditor';
 
 import { 
   map,
@@ -33,6 +34,7 @@ export default function MapExtra({kiosk_mode=false}) {
   const [isNavigating, setIsNavigating] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showNodeVisualizer, setShowNodeVisualizer] = useState(false);
+  const [showBuildingEditor, setShowBuildingEditor] = useState(false);
   const previousBuilding = useRef(null);
 
   // Removed mobile search functionality - not needed for this component
@@ -40,16 +42,23 @@ export default function MapExtra({kiosk_mode=false}) {
   // Engineering themed dummy building data (extend as needed)
 
   const getBuildingInfo = (buildingId) => {
-    console.log(`To be found building at 71: ${buildingId}`)
-    console.log(`=================================================================================================`);
-    fetchedBuilding.current.forEach(b => {
-      
-      console.log(`Building in list: ${b.building_id} ${b.building_name} mapped to ${buildingApiService.mapDatabaseIdToSvgId(b.building_id)}`);
-      
-    });
-    console.log(`=================================================================================================`);
-    const building = fetchedBuilding.current.find(b => buildingId === buildingApiService.mapDatabaseIdToSvgId(b.building_id));
-    console.log(`found building at 71: ${building}`)
+    console.log(`Looking for building with svg_id: ${buildingId}`);
+    console.log(`Total buildings loaded: ${fetchedBuilding.current.length}`);
+    
+    if (fetchedBuilding.current.length > 0) {
+      console.log(`Sample building structure:`, fetchedBuilding.current[0]);
+    }
+    
+    // Buildings now have svg_id directly from database
+    const building = fetchedBuilding.current.find(b => b.svg_id === buildingId);
+    
+    if (building) {
+      console.log(`✅ Found building: ${building.building_name}`);
+    } else {
+      console.log(`❌ Building not found for svg_id: ${buildingId}`);
+      console.log(`Available svg_ids:`, fetchedBuilding.current.map(b => b.svg_id).join(', '));
+    }
+    
     return building;
   };
 
@@ -204,25 +213,32 @@ export default function MapExtra({kiosk_mode=false}) {
     };
   }, [map]);
 
+/*✅ Reads ?location=Engineering%20Workshop from URL
+  ✅ Waits 500ms for map initialization
+  ✅ Looks up the building name in the mapping table
+  ✅ Calls highlighting function
+  ✅ Opens the building info sheet
+  ✅ Removes the URL parameter (so reload doesn't re-trigger)*/
+
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      const loc = params.get('location');
+      const loc = params.get('location');   // e.g., "Engineering Workshop"
       console.log("URL param location:", loc);
-      if (loc) {
+      if (loc) { 
         // Delay slightly to ensure map has initialized
-        setTimeout(() => {
-          const mapCode = buildingMappings.NAME_TO_SVG[loc] || null;
+        setTimeout(() => { 
+          const mapCode = buildingMappings.NAME_TO_SVG[loc] || null; // Convert building name to SVG ID
           if (mapCode) {
-            highlightSelectedBuilding(mapCode);
-            setSelectedBuilding(mapCode);
-            setIsSheetOpen(true);
+            highlightSelectedBuilding(mapCode);  // Highlight on map
+            setSelectedBuilding(mapCode); // Store in state
+            setIsSheetOpen(true); // Open info panel
           }
           
           console.log("Highlighting building by name:", loc, "->", mapCode);
         }, 500);
   
-        // ✅ Clear the query param after first use so it doesn’t trigger again
+        // ✅ Clear the URL parameter (prevent re-triggering on refresh)
         const url = new URL(window.location);
         url.searchParams.delete('location');
         window.history.replaceState({}, '', url); 
@@ -230,7 +246,7 @@ export default function MapExtra({kiosk_mode=false}) {
     } catch (e) {
       console.error("Redirect flow error:", e);
     }
-  }, []);
+  }, []); // Runs once on component mount
 
   // Use central config instead of hardcoded mapping
   const nameToMapCode = buildingMappings.NAME_TO_SVG;
@@ -405,9 +421,9 @@ export default function MapExtra({kiosk_mode=false}) {
             
             setupButton(actualZoomInBtn, zoomIn, 'In');
             setupButton(actualZoomOutBtn, zoomOut, 'Out');
-          } else {
+          } /*else {
             console.log('Zoom controls not found, retrying...');
-          }
+          }*/
         }, 100);
       }
     };
@@ -454,20 +470,28 @@ export default function MapExtra({kiosk_mode=false}) {
       // Clear any existing routes before starting new navigation
       clearRoute();
       
-      let c = buildingToNode(selectedBuilding) 
-      sendMessage('position-update', {coords:getUserPosition(), node: c})
-      unsubscribeGps = addGpsListner((latLng) => {
-        if (isNavigating) {
-          if (c) {
-            sendMessage('position-update', {coords:latLng, node: c})
-          }
-          
+      // buildingToNode is now async, so we need to await it
+      (async () => {
+        const nodeId = await buildingToNode(selectedBuilding);
+        console.log(`Building ${selectedBuilding} mapped to node ${nodeId}`);
+        
+        if (!nodeId) {
+          console.error(`No node mapping found for building ${selectedBuilding}`);
+          return;
         }
         
-      })
-  
-      unsubscribeRouteListner = addMessageListner('route-update', (r) => drawRoute(r));
-  
+        sendMessage('position-update', {coords: getUserPosition(), node: nodeId});
+        
+        unsubscribeGps = addGpsListner((latLng) => {
+          if (isNavigating) {
+            if (nodeId) {
+              sendMessage('position-update', {coords: latLng, node: nodeId});
+            }
+          }
+        });
+    
+        unsubscribeRouteListner = addMessageListner('route-update', (r) => drawRoute(r));
+      })();
       
     } else {
       
@@ -657,6 +681,62 @@ export default function MapExtra({kiosk_mode=false}) {
           <line x1="16.5" y1="16.5" x2="13.5" y2="13.5" stroke="white" strokeWidth="1.5" opacity={showNodeVisualizer ? "1" : "0.5"}/>
         </svg>
         <span style={{ fontWeight: 700 }}>{showNodeVisualizer ? "Nodes ON" : "Nodes OFF"}</span>
+      </button>
+
+      {/* Building Editor */}
+      {showBuildingEditor && (
+        <BuildingEditor
+          onClose={() => setShowBuildingEditor(false)}
+          onBuildingUpdated={(building) => {
+            console.log('Building updated:', building);
+            // Optionally refresh building data here if needed
+          }}
+        />
+      )}
+
+      {/* Building Editor Toggle Button */}
+      <button
+        onClick={() => setShowBuildingEditor(true)}
+        style={{
+          position: "fixed",
+          bottom: 20,
+          left: 160,
+          zIndex: 900,
+          background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+          color: "#ffffff",
+          border: "2px solid #ffffff",
+          borderRadius: 10,
+          padding: "10px 14px",
+          fontWeight: 600,
+          fontSize: "12px",
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2)",
+          transition: "all 0.2s ease",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          touchAction: "manipulation",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = "scale(1.05)";
+          e.currentTarget.style.boxShadow = "0 6px 16px rgba(59, 130, 246, 0.4), 0 3px 6px rgba(0, 0, 0, 0.25)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "scale(1)";
+          e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2)";
+        }}
+        title="Edit Buildings"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="7" height="7" stroke="white" strokeWidth="2" fill="none"/>
+          <rect x="4" y="13" width="7" height="7" stroke="white" strokeWidth="2" fill="none"/>
+          <rect x="13" y="4" width="7" height="7" stroke="white" strokeWidth="2" fill="none"/>
+          <rect x="13" y="13" width="7" height="7" stroke="white" strokeWidth="2" fill="none"/>
+        </svg>
+        <span style={{ fontWeight: 700 }}>Edit Buildings</span>
       </button>
 
       {/* Removed Mobile Search Bar - not needed for this component */}

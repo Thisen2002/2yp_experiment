@@ -1,10 +1,95 @@
-const {nodes, edges} = require('./path.json');
-const turf = require('@turf/turf')
+const turf = require('@turf/turf');
+const pool = require('./db');
 
-edges.forEach(e => {
+// Cache for navigation data
+let cachedNodes = null;
+let cachedEdges = null;
+let usingFallback = false;
+let cacheTimestamp = null;
+
+// Function to clear cache (call this when data changes)
+function clearNavigationCache() {
+  const wasNull = (cachedNodes === null && cachedEdges === null);
+  cachedNodes = null;
+  cachedEdges = null;
+  cacheTimestamp = null;
+  usingFallback = false;  // Reset fallback flag too
+  if (wasNull) {
+    console.log('🗑️ Navigation cache clear requested (was already empty)');
+  } else {
+    console.log('🗑️ Navigation cache CLEARED successfully!');
+  }
+}
+
+// Get cache status for debugging
+function getCacheStatus() {
+  return {
+    isCached: !!(cachedNodes && cachedEdges),
+    nodeCount: cachedNodes ? cachedNodes.length : 0,
+    edgeCount: cachedEdges ? cachedEdges.length : 0,
+    usingFallback: usingFallback,
+    cacheAge: cacheTimestamp ? Math.round((Date.now() - cacheTimestamp) / 1000) : null
+  };
+}
+
+// Load from database or fallback to path.json
+async function loadNavigationData() {
+  if (cachedNodes && cachedEdges) {
+    const age = cacheTimestamp ? `(loaded ${Math.round((Date.now() - cacheTimestamp) / 1000)}s ago)` : '';
+    console.log(`♻️ Using cached navigation data ${age}: ${cachedNodes.length} nodes, ${cachedEdges.length} edges`);
+    return { nodes: cachedNodes, edges: cachedEdges };
+  }
+
+  console.log('🔄 Loading fresh navigation data from database...');
+  cacheTimestamp = Date.now();
+  
+  try {
+    // Try to fetch from database
+    const [nodesResult, edgesResult] = await Promise.all([
+      pool.query('SELECT node_index, latitude, longitude FROM navigation_nodes ORDER BY node_index ASC'),
+      pool.query('SELECT edge_code as id, from_node as "from", to_node as "to", path_coordinates as coords FROM navigation_edges ORDER BY edge_id ASC')
+    ]);
+
+    // Create a mapping from node_index to array index
+    const nodeIndexToArrayIndex = new Map();
+    cachedNodes = nodesResult.rows.map((row, arrayIndex) => {
+      nodeIndexToArrayIndex.set(row.node_index, arrayIndex);
+      return {
+        lat: parseFloat(row.latitude),
+        lng: parseFloat(row.longitude),
+        nodeIndex: row.node_index  // Keep track of original index
+      };
+    });
+
+    // Remap edge indices from node_index to array indices
+    cachedEdges = edgesResult.rows.map(row => ({
+      id: row.id,
+      from: nodeIndexToArrayIndex.get(row.from),  // Convert to array index
+      to: nodeIndexToArrayIndex.get(row.to),      // Convert to array index
+      coords: row.coords
+    }));
+
+    console.log(`✅ Routing loaded from database: ${cachedNodes.length} nodes, ${cachedEdges.length} edges`);
+    console.log(`📊 Node index mapping: ${Array.from(nodeIndexToArrayIndex.entries()).map(([ni, ai]) => `${ni}→${ai}`).join(', ')}`);
+    usingFallback = false;
+  } catch (error) {
+    console.warn('⚠️ Database unavailable, falling back to path.json:', error.message);
+    // Fallback to hardcoded path.json
+    const pathData = require('./path.json');
+    cachedNodes = pathData.nodes;
+    cachedEdges = pathData.edges;
+    usingFallback = true;
+    console.log(`📁 Routing loaded from path.json: ${cachedNodes.length} nodes, ${cachedEdges.length} edges`);
+  }
+
+  // Calculate edge lengths
+  cachedEdges.forEach(e => {
     const line = turf.lineString(e.coords.map(([lat,lng]) => [lng, lat]));
     e.lengthM = turf.length(line, { units: 'meters' });
   });
+
+  return { nodes: cachedNodes, edges: cachedEdges };
+}
 
 
   // --------------------------------------------------
@@ -51,7 +136,7 @@ edges.forEach(e => {
   // --------------------------------------------------
   // 4) Snap to nearest edge
   // --------------------------------------------------
-  function nearestPointOnEdge(lat, lng, edges) {
+  function nearestPointOnEdge(lat, lng, edges, nodes) {
     const pt = turf.point([lng,lat]);
     let best=null;
     edges.forEach(e=>{
@@ -81,10 +166,28 @@ edges.forEach(e => {
   }
 
   // --------------------------------------------------
-  // 5) Route with a virtual node
+  // 5) Route with a virtual node (now async)
   // --------------------------------------------------
-  function routeFromArbitraryPoint(userLatLng, destNode) {
-    const snap=nearestPointOnEdge(userLatLng[0],userLatLng[1],edges);
+  async function routeFromArbitraryPoint(userLatLng, destNodeIndex) {
+    // Load navigation data (from DB or fallback to path.json)
+    const { nodes, edges } = await loadNavigationData();
+    
+    // Convert destNodeIndex to array index if we loaded from database
+    let destNode = destNodeIndex;
+    if (!usingFallback) {
+      // Find the array index for this node_index
+      const arrayIndex = nodes.findIndex(n => n.nodeIndex === destNodeIndex);
+      if (arrayIndex === -1) {
+        console.error(`❌ Destination node ${destNodeIndex} not found in database`);
+        return null;
+      }
+      destNode = arrayIndex;
+      console.log(`🎯 Routing to node_index ${destNodeIndex} (array index ${arrayIndex})`);
+    } else {
+      console.log(`🎯 Routing to node ${destNode} (using path.json)`);
+    }
+    
+    const snap=nearestPointOnEdge(userLatLng[0],userLatLng[1],edges,nodes);
     const {edge,line,snapLatLng,distToStartM,distToEndM}=snap;
 
     const vId=nodes.length; // next index
@@ -133,4 +236,11 @@ edges.forEach(e => {
 
 //   const result=routeFromArbitraryPoint(userLatLng,dest);
 
-  module.exports =  routeFromArbitraryPoint;
+  module.exports = {
+    default: routeFromArbitraryPoint,
+    clearNavigationCache: clearNavigationCache,
+    getCacheStatus: getCacheStatus
+  };
+  
+  // For backwards compatibility
+  module.exports.routeFromArbitraryPoint = routeFromArbitraryPoint;

@@ -2,12 +2,15 @@
 // This service handles all communication with the building service backend
 // Falls back to sample data when backend is not available
 
-import { data } from 'react-router-dom';
-import buildingData, { searchBuildings as searchSampleData, getAllBuildings as getAllSampleBuildings } from './buildingData.js';
-import buildingMappings from '../../config/buildingMappings.js';
+import { 
+  getAllBuildings as getAllBuildingsFromAPI,
+  getBuildingById as getBuildingByIdFromAPI,
+  searchBuildings as searchBuildingsFromAPI,
+  mapDatabaseIdToSvgId as mapIdToSvg
+} from '../../config/buildingMappings.js';
 
-const BUILDING_SERVICE_URL = 'http://localhost:5000'; // Building service port
-const USE_SAMPLE_DATA = true; // Set to true to use sample data instead of backend
+const BUILDING_SERVICE_URL = 'http://localhost:5000'; // Building service port (legacy)
+const USE_SAMPLE_DATA = true; // Set to true to use database API instead of legacy backend
 
 class BuildingApiService {
   // let preFetchBuildings = [];
@@ -27,24 +30,38 @@ class BuildingApiService {
 
   async preFetch(){
     try {
-      const response = await fetch(`${this.baseUrl}/buildings`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      console.log(`fetched data:${data}`)
-      return data;
+      // Use the new database API
+      const data = await getAllBuildingsFromAPI();
+      console.log(`fetched data from database:`, data);
+      return data.map(b => ({
+        building_id: b.building_ID,
+        building_name: b.building_name,
+        description: b.description,
+        zone_id: b.zone_ID,
+        exhibits: b.exhibits || [],
+        coordinates: b.coordinates,
+        svg_id: b.svg_id
+      }));
     } catch (error) {
-      console.error('Error fetching buildings, falling back to sample data:', error);
-      return getAllSampleBuildings();
+      console.error('Error fetching buildings from database:', error);
+      return [];
     }
   }
 
   // Get all buildings
   async getAllBuildings() {
     if (USE_SAMPLE_DATA) {
-      console.log('Using sample building data');
-      return getAllSampleBuildings();
+      console.log('Using database API for building data');
+      const buildings = await getAllBuildingsFromAPI();
+      return buildings.map(b => ({
+        building_id: b.building_ID,
+        building_name: b.building_name,
+        description: b.description,
+        zone_id: b.zone_ID,
+        exhibits: b.exhibits || [],
+        coordinates: b.coordinates,
+        svg_id: b.svg_id
+      }));
     }
     
     try {
@@ -64,9 +81,18 @@ class BuildingApiService {
   // Get building by ID
   async getBuildingById(buildingId) {
     if (USE_SAMPLE_DATA) {
-      console.log('Using sample data for building ID:', buildingId);
-      const { getBuildingById: getSampleBuildingById } = await import('./buildingData.js');
-      return getSampleBuildingById(buildingId);
+      console.log('Using database API for building ID:', buildingId);
+      const building = await getBuildingByIdFromAPI(buildingId);
+      if (!building) return null;
+      return {
+        building_id: building.building_ID,
+        building_name: building.building_name,
+        description: building.description,
+        zone_id: building.zone_ID,
+        exhibits: building.exhibits || [],
+        coordinates: building.coordinates,
+        svg_id: building.svg_id
+      };
     }
     
     try {
@@ -77,9 +103,18 @@ class BuildingApiService {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Error fetching building by ID, falling back to sample data:', error);
-      const { getBuildingById: getSampleBuildingById } = await import('./buildingData.js');
-      return getSampleBuildingById(buildingId);
+      console.error('Error fetching building by ID, falling back to database API:', error);
+      const building = await getBuildingByIdFromAPI(buildingId);
+      if (!building) return null;
+      return {
+        building_id: building.building_ID,
+        building_name: building.building_name,
+        description: building.description,
+        zone_id: building.zone_ID,
+        exhibits: building.exhibits || [],
+        coordinates: building.coordinates,
+        svg_id: building.svg_id
+      };
     }
   }
 
@@ -200,92 +235,30 @@ class BuildingApiService {
   }
 
   // Search buildings by name, description, and exhibits
-  async searchBuildings(query, options = {}) {
-    // if (USE_SAMPLE_DATA) {
-    //   console.log('Using sample data for search:', query);
-    //   return searchSampleData(query, options);
-    // }
-    
+  async searchBuildings(query, options = {}) {    
     try {
       if (!query || query.trim() === '') return [];
       
-      const searchTerm = query.trim().toLowerCase();
+      // Use the new database search API
+      const results = await searchBuildingsFromAPI(query, options);
       
-      // Get all buildings first
-      const allBuildings = this.preFetchBuildings;
-      
-      let results = [];
-      
-      // Search through ALL buildings - include all buildings in search results
-      allBuildings.forEach((building) => {
-        const svgId = this.mapDatabaseIdToSvgId(building.building_id);
-        
-        const matchesQuery = 
-          building.building_name?.toLowerCase().includes(searchTerm) ||
-          building.description?.toLowerCase().includes(searchTerm) ||
-          building.exhibits?.some(exhibit => exhibit.toLowerCase().includes(searchTerm));
-        
-        if (matchesQuery) {
-          // Check zone filter if provided
-          if (options.zone && options.zone !== 'all') {
-            if (building.zone_id !== parseInt(options.zone)) return;
-          }
-          
-          // Add building to results
-          results.push({
-            id: building.building_id,
-            name: building.building_name,
-            category: 'Building',
-            description: building.description,
-            buildingId: building.building_id,
-            svgBuildingId: svgId, // This will be "b5" for Common Room
-            zoneId: building.zone_id,
-            exhibits: building.exhibits || [],
-            type: 'building'
-          });
-          
-          // Add exhibits from this building that match the search
-          if (building.exhibits) {
-            building.exhibits.forEach((exhibit, index) => {
-              if (exhibit.toLowerCase().includes(searchTerm)) {
-                results.push({
-                  id: `${building.building_id}-exhibit-${index}`,
-                  name: exhibit,
-                  category: 'Exhibit',
-                  description: `Exhibit in ${building.building_name}`,
-                  buildingId: building.building_id,
-                  buildingName: building.building_name,
-                  svgBuildingId: svgId,
-                  zoneId: building.zone_id,
-                  type: 'exhibit'
-                });
-              }
-            });
-          }
-        }
-      });
-      
-      // Remove duplicates and limit results
-      const uniqueResults = results.filter((result, index, self) => 
-        index === self.findIndex(r => r.id === result.id)
-      );
-      
-      return uniqueResults.slice(0, 10); // Limit to 10 results for better UX
+      return results.slice(0, 10); // Limit to 10 results for better UX
       
     } catch (error) {
-      console.error('Error searching buildings, falling back to sample data:', error);
-      return searchSampleData(query, options);
+      console.error('Error searching buildings:', error);
+      return [];
     }
   }
 
   // Map database building ID to SVG building ID (b33, b34, etc.)
-  mapDatabaseIdToSvgId(databaseId) {
-    return buildingMappings.mapDatabaseIdToSvgId(databaseId);
+  async mapDatabaseIdToSvgId(databaseId) {
+    return await mapIdToSvg(databaseId);
   }
 
   // Check if a building has a valid SVG mapping (exists on the map)
-  isValidSvgMapping(databaseId) {
-    return buildingMappings.DB_TO_SVG.hasOwnProperty(databaseId);
+  async isValidSvgMapping(databaseId) {
+    const svgId = await mapIdToSvg(databaseId);
+    return svgId !== null;
   }
 }
 

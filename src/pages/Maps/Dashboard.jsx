@@ -376,7 +376,7 @@ const Dashboard = ({kiosk_mode}) => {
     <div className="dashboard-container with-bottom-padding">
       <div className="map-page">
         <div className="map-header">
-          <div className="dashboard-search-center">
+          <div className="dashboard-search-center" style={{ display: 'none' }}> //currently hiding search bar in header
             <DesktopSearchBar
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}

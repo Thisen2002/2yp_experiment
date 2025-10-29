@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import InterestsDialog from "../components/InterestsDialog.jsx";
 
+//Initiates navigation with location parameter
+
 const EventsScreen = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -350,7 +352,7 @@ const EventsScreen = () => {
                             title="Navigate to location"
                         >
                           <svg 
-                            xmlns="http://www.w3.org/2000/svg" 
+                            xmlns="http://www.w3.org/2000/svg"  // SVG location icon
                             width="22" 
                             height="22" 
                             viewBox="0 0 24 24" 

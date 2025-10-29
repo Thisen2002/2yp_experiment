@@ -13,7 +13,7 @@ const USE_FAKE_LOCATION = true;
 // 📍 Fake location coordinates (must be within map bounds)
 // Map bounds: lat 7.252000-7.255500, lng 80.590249-80.593809
 // You can adjust these coordinates to test different positions:
-const FAKE_LOCATION = {lat: 7.253750,  lng: 80.592028};
+const FAKE_LOCATION = {lat: 7.254650,  lng: 80.591277};
   // Other test locations:
   // Engineering Library: lat: 7.253500, lng: 80.591800
   // Department of Computer Engineering: lat: 7.254200, lng: 80.591500
@@ -26,6 +26,12 @@ const API = 'http://localhost:3001'; // Maps backend server port
 let userPosition;
 let userMarkerLayer;
 function setUserPosition(latLng) {
+  // Only update if position actually changed
+  if (userPosition && userPosition[0] === latLng[0] && userPosition[1] === latLng[1]) {
+    // Position hasn't changed, don't trigger listeners
+    return;
+  }
+  
   userPosition = latLng
   console.log(`user position set to: ${userPosition[0]}, ${userPosition[1]}`)
   gpsListners.forEach((listener) => listener(userPosition))
@@ -49,11 +55,11 @@ function buildingClick(id) {
 }
 
 function highlightSelectedBuilding(bid) {
-  if (prevBuildingId) {
-    setBuildingAccent(prevBuildingId, "assigned");
-  }
-  prevBuildingId = bid;
-  setBuildingAccent(bid, "clicked");
+  if (prevBuildingId) {  // Remove highlight from previously selected building
+    setBuildingAccent(prevBuildingId, "assigned"); 
+  } // Reset to normal
+  prevBuildingId = bid; // Store current selection
+  setBuildingAccent(bid, "clicked"); // Apply highlight
 }
 
 
@@ -88,41 +94,59 @@ function initMap(map_div) {
     // Example: show/hide labels depending on zoom
     if (zoomLevel <= 18) {
       const icons = document.querySelector(`#_x3C_icons_x3E_`);
-      icons.classList.remove("st5"); // remove previous accent classes
-      icons.classList.add("st6");
+      if (icons) {
+        icons.classList.remove("st5"); // remove previous accent classes
+        icons.classList.add("st6");
+      }
 
       const b_name = document.querySelector(`#_x3C_building_name_big_x3E_`);
-      b_name.classList.remove("st6"); // remove previous accent classes
-      b_name.classList.add("st5");
+      if (b_name) {
+        b_name.classList.remove("st6"); // remove previous accent classes
+        b_name.classList.add("st5");
+      }
 
       const s_name = document.querySelector(`#_x3C_building_name_small_x3E_`);
-      s_name.classList.remove("st6"); // remove previous accent classes
-      s_name.classList.add("st5");
+      if (s_name) {
+        s_name.classList.remove("st6"); // remove previous accent classes
+        s_name.classList.add("st5");
+      }
 
     } else if (zoomLevel <= 19) {
       const icons = document.querySelector(`#_x3C_icons_x3E_`);
-      icons.classList.remove("st6"); // remove previous accent classes
-      icons.classList.add("st5");
+      if (icons) {
+        icons.classList.remove("st6"); // remove previous accent classes
+        icons.classList.add("st5");
+      }
 
       const b_name = document.querySelector(`#_x3C_building_name_big_x3E_`);
-      b_name.classList.remove("st5"); // remove previous accent classes
-      b_name.classList.add("st6");
+      if (b_name) {
+        b_name.classList.remove("st5"); // remove previous accent classes
+        b_name.classList.add("st6");
+      }
 
       const s_name = document.querySelector(`#_x3C_building_name_small_x3E_`);
-      s_name.classList.remove("st6"); // remove previous accent classes
-      s_name.classList.add("st5");
+      if (s_name) {
+        s_name.classList.remove("st6"); // remove previous accent classes
+        s_name.classList.add("st5");
+      }
     } else {
       const icons = document.querySelector(`#_x3C_icons_x3E_`);
-      icons.classList.remove("st6"); // remove previous accent classes
-      icons.classList.add("st5");
+      if (icons) {
+        icons.classList.remove("st6"); // remove previous accent classes
+        icons.classList.add("st5");
+      }
 
       const b_name = document.querySelector(`#_x3C_building_name_big_x3E_`);
-      b_name.classList.remove("st5"); // remove previous accent classes
-      b_name.classList.add("st6");
+      if (b_name) {
+        b_name.classList.remove("st5"); // remove previous accent classes
+        b_name.classList.add("st6");
+      }
 
       const s_name = document.querySelector(`#_x3C_building_name_small_x3E_`);
-      s_name.classList.remove("st5"); // remove previous accent classes
-      s_name.classList.add("st6");
+      if (s_name) {
+        s_name.classList.remove("st5"); // remove previous accent classes
+        s_name.classList.add("st6");
+      }
     }
   });
 
@@ -170,8 +194,8 @@ function initMap(map_div) {
 
 }
 
-function buildingToNode(id) {
-  return buildingMappings.mapSvgIdToNodeId(id);
+async function buildingToNode(id) {
+  return await buildingMappings.mapSvgIdToNodeId(id);
 }
 
 // Store route layers for proper cleanup
@@ -284,13 +308,13 @@ function setBuildingAccent(buildingId ,accent) {
   let cls = "";
   switch(accent) {
     case "unassigned":
-      cls = "st1";
+      cls = "st1"; // Default style
       break;
     case "assigned":
-      cls = "st13";
+      cls = "st13"; // Normal building style
       break;
     case "clicked":
-      cls = "st0";
+      cls = "st0"; // HIGHLIGHTED style (selected)
       break;
     default:
       console.warn(`Unknown accent type: ${accent}`);
@@ -298,8 +322,8 @@ function setBuildingAccent(buildingId ,accent) {
   }
   const building = document.querySelector(`#${buildingId}`);
 if (building) {
-  building.classList.remove("st1", "st13", "st0"); // remove previous accent classes
-  building.classList.add(cls);
+  building.classList.remove("st1", "st13", "st0");  // Remove all previuos accent classes
+  building.classList.add(cls); // Add new class
 } else {
   console.warn("Building not found:", buildingId);
 }
